@@ -41,7 +41,7 @@ export interface RegisterData {
   email: string;
   password: string;
   fullName: string;
-  organizationId: string;
+  organizationId?: string;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -59,6 +59,13 @@ const handleResponse = async (response: Response) => {
   }
 
   if (!response.ok) {
+    // Si hay errores de validación, mostrarlos todos
+    if (data.errors && Array.isArray(data.errors)) {
+      const errorMessages = data.errors.map((err: any) =>
+        `${err.path || err.param}: ${err.msg}`
+      ).join(', ');
+      throw new Error(errorMessages || data.message || `Error ${response.status}`);
+    }
     throw new Error(data.message || JSON.stringify(data) || `Error ${response.status}`);
   }
 

@@ -25,7 +25,7 @@ router.post('/register', [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.\-_#])[A-Za-z\d@$!%*?&.\-_#]+$/)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
   body('fullName')
     .notEmpty()
@@ -33,8 +33,7 @@ router.post('/register', [
     .isLength({ min: 3, max: 100 })
     .withMessage('Full name must be between 3 and 100 characters'),
   body('organizationId')
-    .notEmpty()
-    .withMessage('Organization ID is required')
+    .optional()
     .isUUID()
     .withMessage('Invalid organization ID format'),
 ], async (req, res: Response) => {
@@ -49,15 +48,33 @@ router.post('/register', [
       });
     }
 
-    const { rut, email, password, fullName, organizationId } = req.body;
+    let { rut, email, password, fullName, organizationId } = req.body;
 
-    // Check if organization exists
-    const organization = await Organization.findByPk(organizationId);
-    if (!organization) {
-      return res.status(400).json({
-        success: false,
-        message: 'Organization not found',
+    // If no organizationId provided, find or create default organization
+    if (!organizationId) {
+      let defaultOrg = await Organization.findOne({
+        where: { name: 'Default Organization' }
       });
+
+      if (!defaultOrg) {
+        // Create default organization
+        defaultOrg = await Organization.create({
+          name: 'Default Organization',
+          rut: '00.000.000-0',
+          email: 'default@example.com',
+        });
+      }
+
+      organizationId = defaultOrg.id;
+    } else {
+      // Check if organization exists
+      const organization = await Organization.findByPk(organizationId);
+      if (!organization) {
+        return res.status(400).json({
+          success: false,
+          message: 'Organization not found',
+        });
+      }
     }
 
     // Register user

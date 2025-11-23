@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { Users, Vote, TrendingUp, Calendar, Eye } from 'lucide-react';
+import { Users, Vote, TrendingUp, Calendar, Eye, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import ParticipationChart from '../components/ParticipationChart';
 
 interface Stats {
   totalUsers: number;
@@ -25,21 +26,64 @@ interface RecentUser {
 }
 
 export default function AdminDashboard() {
-  const { user } = useAuthStore();
+  const { user, accessToken } = useAuthStore();
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentElections, setRecentElections] = useState<RecentElection[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [chartData, setChartData] = useState([]);
+  const [period, setPeriod] = useState('24h');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (accessToken) {
+      fetchDashboardData();
+      fetchChartData();
+    }
+  }, [accessToken, period]);
+
+  const fetchChartData = async () => {
+    try {
+      const response = await fetch(`/api/admin/stats/participation?period=${period}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChartData(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching chart data:', error);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/admin/stats/export', {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte-votacion-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Reporte descargado correctamente');
+      }
+    } catch (error) {
+      toast.error('Error al exportar reporte');
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
       const response = await fetch('/api/admin/dashboard', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
@@ -130,6 +174,32 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Participation Chart Section */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-semibold text-gray-900">Participación en el Tiempo</h2>
+          <div className="flex items-center space-x-4">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="block w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            >
+              <option value="24h">Últimas 24h</option>
+              <option value="7d">Últimos 7 días</option>
+              <option value="30d">Últimos 30 días</option>
+            </select>
+            <button
+              onClick={handleExport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Exportar Reporte
+            </button>
+          </div>
+        </div>
+        <ParticipationChart data={chartData} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

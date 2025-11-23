@@ -19,7 +19,9 @@ export interface UserAttributes {
   lockedUntil?: Date | null;
 }
 
-export type UserCreationAttributes = Omit<UserAttributes, 'id' | 'emailVerified' | 'twoFactorEnabled' | 'failedLoginAttempts'>;
+export type UserCreationAttributes = Omit<UserAttributes, 'id' | 'twoFactorEnabled' | 'failedLoginAttempts'> & {
+  emailVerified?: boolean;
+};
 
 export class User extends Model<UserAttributes, UserCreationAttributes>
   implements UserAttributes {

@@ -16,7 +16,7 @@ export class VotingService {
 
   async getAvailableElections(userId: string, organizationId: string): Promise<Election[]> {
     const now = new Date();
-    
+
     return await Election.findAll({
       where: {
         organizationId,
@@ -32,6 +32,26 @@ export class VotingService {
         }
       ],
       order: [['endDate', 'ASC']]
+    });
+  }
+
+  async getCompletedElections(organizationId: string): Promise<Election[]> {
+    return await Election.findAll({
+      where: {
+        organizationId,
+        [Op.or]: [
+          { status: 'completed' },
+          { endDate: { [Op.lt]: new Date() } }
+        ]
+      },
+      include: [
+        {
+          model: ElectionOption,
+          as: 'options',
+          required: false
+        }
+      ],
+      order: [['endDate', 'DESC']]
     });
   }
 
@@ -124,17 +144,23 @@ export class VotingService {
     }
 
     // Create votes for each selected option
+    const { createHash } = await import('crypto');
+
     const votes = await Promise.all(
-      data.optionIds.map(selectedOptionId =>
-        Vote.create({
+      data.optionIds.map(selectedOptionId => {
+        const timestamp = new Date().toISOString();
+        const hashInput = `${data.userId}-${data.electionId}-${selectedOptionId}-${timestamp}-${Math.random()}`;
+        const verificationHash = createHash('sha256').update(hashInput).digest('hex');
+
+        return Vote.create({
           electionId: data.electionId,
           selectedOptionId,
           userId: data.userId,
-          verificationHash: 'temp-hash',
+          verificationHash,
           ipAddress: data.ipAddress,
           userAgent: data.userAgent
-        })
-      )
+        });
+      })
     );
 
     return votes;

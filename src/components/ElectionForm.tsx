@@ -112,7 +112,57 @@ export default function ElectionForm() {
     }
   }, [isEditing, fetchElection]);
 
-  
+  const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({});
+
+  const handleImageUpload = async (index: number, file: File) => {
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Solo se permiten archivos de imagen (JPEG, PNG, GIF, WebP)');
+      return;
+    }
+
+    // Validar tamaño (5MB máximo)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no puede superar los 5MB');
+      return;
+    }
+
+    try {
+      setUploadingImages(prev => ({ ...prev, [index]: true }));
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error al subir imagen');
+      }
+
+      const data = await response.json();
+
+      // Actualizar la URL de la imagen en el formulario
+      handleOptionChange(index, 'imageUrl', data.data.url);
+      toast.success('Imagen subida exitosamente');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al subir imagen');
+      console.error('Image upload error:', error);
+    } finally {
+      setUploadingImages(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+
 
   const handleInputChange = (field: keyof ElectionFormData, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -241,13 +291,24 @@ export default function ElectionForm() {
 
       if (!response.ok) {
         const error = await response.json();
+        console.error('Validation errors:', error);
+
+        // Mostrar errores de validación específicos
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err: any) => {
+            toast.error(`${err.path || err.param}: ${err.msg}`);
+          });
+        }
+
         throw new Error(error.message || 'Error al guardar elección');
       }
 
       toast.success(isEditing ? 'Elección actualizada exitosamente' : 'Elección creada exitosamente');
       navigate('/admin/elections');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Error al guardar la elección');
+      if (!(error instanceof Error && error.message === 'Errores de validación')) {
+        toast.error(error instanceof Error ? error.message : 'Error al guardar la elección');
+      }
       console.error('Error saving election:', error);
     } finally {
       setSaving(false);
@@ -475,20 +536,60 @@ export default function ElectionForm() {
                       </label>
                       <div className="flex space-x-2">
                         <input
-                          type="url"
+                          type="text"
                           value={option.imageUrl}
                           onChange={(e) => handleOptionChange(index, 'imageUrl', e.target.value)}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="https://ejemplo.com/imagen.jpg"
+                          placeholder="https://ejemplo.com/imagen.jpg o /uploads/imagen.jpg"
+                        />
+                        <input
+                          type="file"
+                          id={`image-upload-${index}`}
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImageUpload(index, file);
+                            }
+                          }}
                         />
                         <button
                           type="button"
-                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center space-x-1"
+                          onClick={() => document.getElementById(`image-upload-${index}`)?.click()}
+                          disabled={uploadingImages[index]}
+                          className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
                         >
-                          <Upload className="w-4 h-4" />
-                          <span className="text-sm">Subir</span>
+                          {uploadingImages[index] ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                              <span className="text-sm">Subiendo...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              <span className="text-sm">Subir</span>
+                            </>
+                          )}
                         </button>
                       </div>
+                      {option.imageUrl && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500 mb-1">Vista previa:</p>
+                          <img
+                            src={option.imageUrl}
+                            alt="Preview"
+                            className="h-32 w-32 object-cover rounded-lg border border-gray-200"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              const errorMsg = target.nextElementSibling as HTMLElement;
+                              if (errorMsg) errorMsg.style.display = 'block';
+                            }}
+                          />
+                          <p className="text-xs text-red-500 mt-1 hidden">No se pudo cargar la imagen</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

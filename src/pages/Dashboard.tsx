@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, Users, Vote, BarChart3, Settings, Shield } from 'lucide-react';
+import { LogOut, Users, Vote, BarChart3, Settings, Shield, Download } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 import { toast } from 'sonner';
+import ParticipationChart from '../components/ParticipationChart';
 
 interface DashboardStats {
   activeElections: number;
@@ -20,32 +21,94 @@ const Dashboard: React.FC = () => {
     totalVotes: 0,
     participationRate: 0,
   });
+  const [chartData, setChartData] = useState([]);
+  const [period, setPeriod] = useState('24h');
   const [loading, setLoading] = useState(true);
+
+  const fetchChartData = async () => {
+    if (!['admin', 'super_admin'].includes(user?.role || '')) return;
+
+    try {
+      const response = await fetch(`/api/admin/stats/participation?period=${period}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChartData(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching chart data:', error);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/admin/stats/export', {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Create a simple JSON download for now (can be enhanced to PDF later)
+        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte-votacion-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Reporte descargado correctamente');
+      }
+    } catch (error) {
+      toast.error('Error al exportar reporte');
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/admin/dashboard', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const { totalUsers, activeElections, totalVotes } = data.data.stats;
-
-          // Calculate participation rate
-          const participationRate = totalUsers > 0
-            ? Math.round((totalVotes / totalUsers) * 100)
-            : 0;
-
-          setStats({
-            activeElections,
-            totalUsers,
-            totalVotes,
-            participationRate,
+        if (['admin', 'super_admin'].includes(user?.role || '')) {
+          const response = await fetch('/api/admin/dashboard', {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
           });
+
+          if (response.ok) {
+            const data = await response.json();
+            const { totalUsers, activeElections, totalVotes } = data.data.stats;
+
+            // Calculate participation rate
+            const participationRate = totalUsers > 0
+              ? Math.round((totalVotes / totalUsers) * 100)
+              : 0;
+
+            setStats({
+              activeElections,
+              totalUsers,
+              totalVotes,
+              participationRate,
+            });
+          }
+        } else {
+          // For voters, fetch available elections count
+          const response = await fetch('/api/voting/available', {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setStats({
+              activeElections: data.data.length,
+              totalUsers: 0, // Hidden for voters
+              totalVotes: 0, // Hidden for voters
+              participationRate: 0, // Hidden for voters
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -56,8 +119,11 @@ const Dashboard: React.FC = () => {
 
     if (accessToken) {
       fetchStats();
+      if (['admin', 'super_admin'].includes(user?.role || '')) {
+        fetchChartData();
+      }
     }
-  }, [accessToken]);
+  }, [accessToken, period, user?.role]);
 
   const handleLogout = () => {
     logout();
@@ -210,33 +276,37 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Users className="w-8 h-8 text-green-600" />
+            {['admin', 'super_admin'].includes(user?.role || '') && (
+              <>
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Users className="w-8 h-8 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="text-lg font-medium text-gray-900">Total Usuarios</h3>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {loading ? '...' : stats.totalUsers}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Total Usuarios</h3>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {loading ? '...' : stats.totalUsers}
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <BarChart3 className="w-8 h-8 text-purple-600" />
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <BarChart3 className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="text-lg font-medium text-gray-900">Participación</h3>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {loading ? '...' : `${stats.participationRate}%`}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Participación</h3>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {loading ? '...' : `${stats.participationRate}%`}
-                  </p>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </main>

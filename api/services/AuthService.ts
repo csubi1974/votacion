@@ -127,6 +127,9 @@ export class AuthService {
       // Generate email verification token
       const emailVerificationToken = generateEmailVerificationToken();
 
+      // In development, auto-verify emails
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+
       // Create user
       const user = await User.create({
         rut: data.rut,
@@ -134,14 +137,21 @@ export class AuthService {
         passwordHash,
         fullName: data.fullName,
         organizationId: data.organizationId,
+        emailVerified: isDevelopment, // Auto-verify in development
       });
 
       // TODO: Send email verification email
-      console.log(`Email verification token for ${data.email}: ${emailVerificationToken}`);
+      if (isDevelopment) {
+        console.log(`✅ Development mode: Email auto-verified for ${data.email}`);
+      } else {
+        console.log(`Email verification token for ${data.email}: ${emailVerificationToken}`);
+      }
 
       return {
         success: true,
-        message: 'User registered successfully. Please verify your email to continue.',
+        message: isDevelopment
+          ? 'User registered successfully. You can now login.'
+          : 'User registered successfully. Please verify your email to continue.',
         user: {
           id: user.id,
           rut: user.rut,

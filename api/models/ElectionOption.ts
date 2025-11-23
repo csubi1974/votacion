@@ -11,7 +11,7 @@ export interface ElectionOptionAttributes {
 
 export type ElectionOptionCreationAttributes = Omit<ElectionOptionAttributes, 'id'>;
 
-export class ElectionOption extends Model<ElectionOptionAttributes, ElectionOptionCreationAttributes> 
+export class ElectionOption extends Model<ElectionOptionAttributes, ElectionOptionCreationAttributes>
   implements ElectionOptionAttributes {
   declare id: string;
   declare electionId: string;
@@ -47,7 +47,17 @@ ElectionOption.init({
     type: DataTypes.STRING,
     allowNull: true,
     validate: {
-      isUrl: true,
+      isValidUrl(value: string) {
+        if (!value || value === '') return;
+        // Aceptar rutas relativas que empiecen con /
+        if (value.startsWith('/')) return;
+        // Validar URLs absolutas
+        try {
+          new URL(value);
+        } catch {
+          throw new Error('La URL de la imagen debe ser válida o una ruta relativa');
+        }
+      }
     },
   },
   orderIndex: {

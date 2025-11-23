@@ -17,6 +17,8 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import UserProfile from "@/pages/UserProfile";
 import BulkImport from "@/pages/BulkImport";
+import AdminUserForm from "@/pages/AdminUserForm";
+import ResultsList from "@/pages/ResultsList";
 
 export default function App() {
   return (
@@ -45,6 +47,22 @@ export default function App() {
             }
           />
           <Route
+            path="/results"
+            element={
+              <ProtectedRoute>
+                <ResultsList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/results/:id"
+            element={
+              <ProtectedRoute>
+                <ElectionResultsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>
@@ -61,10 +79,14 @@ export default function App() {
             }
           >
             <Route index element={<AdminDashboardPage />} />
+            <Route path="dashboard" element={<AdminDashboardPage />} />
             <Route path="users" element={<AdminUsersPage />} />
+            <Route path="users/new" element={<AdminUserForm />} />
+            <Route path="users/:id/edit" element={<AdminUserForm />} />
             <Route path="bulk-import" element={<BulkImport />} />
             <Route path="elections" element={<AdminElectionsPage />} />
             <Route path="elections/new" element={<AdminElectionForm />} />
+            <Route path="elections/:id" element={<ElectionResultsPage />} />
             <Route path="elections/:id/edit" element={<AdminElectionForm />} />
             <Route path="elections/:id/results" element={<ElectionResultsPage />} />
             <Route path="audit" element={<AuditLogsPage />} />

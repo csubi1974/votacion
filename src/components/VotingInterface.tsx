@@ -400,7 +400,17 @@ export default function VotingInterface() {
                             className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-all"
                           />
                         </div>
-                        <div className="ml-3 flex-1">
+                        <div className="ml-3 flex-1 flex items-center">
+                          {option.imageUrl && (
+                            <img
+                              src={option.imageUrl}
+                              alt={option.text}
+                              className="w-16 h-16 object-cover rounded-md mr-4 border border-gray-200"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          )}
                           <h3 className="text-sm font-medium text-gray-900">{option.text}</h3>
                         </div>
                         {selectedOptions.includes(option.id) && (
@@ -456,6 +466,14 @@ export default function VotingInterface() {
                       return (
                         <li key={optionId} className="flex items-center text-sm text-gray-700 bg-green-50 p-2 rounded-lg">
                           <Check className="w-5 h-5 text-green-600 mr-2" />
+                          {option?.imageUrl && (
+                            <img
+                              src={option.imageUrl}
+                              alt=""
+                              className="w-8 h-8 object-cover rounded mr-2"
+                              onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                            />
+                          )}
                           <span className="font-medium">{option?.text}</span>
                         </li>
                       );

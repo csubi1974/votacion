@@ -1,6 +1,6 @@
 import { Sequelize } from 'sequelize';
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const dbPath = path.join(process.cwd(), 'data', 'voting-platform.db');
 
@@ -22,10 +22,10 @@ export const connectDatabase = async () => {
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
-    
+
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
-    
+
     return true;
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error);

@@ -17,6 +17,8 @@ import votingRoutes from './routes/voting.js'
 import auditRoutes from './routes/audit.js'
 import electionRoutes from './routes/elections.js'
 import bulkImportRoutes from './routes/bulkImport.js'
+import adminStatsRoutes from './routes/adminStats.js'
+import uploadRoutes from './routes/upload.js'
 import { connectDatabase } from './config/database.js'
 import './models/index.js'
 import {
@@ -52,6 +54,10 @@ app.use(cors({
 // Body parsing with limits
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+// Servir archivos estáticos (imágenes subidas)
+app.use('/uploads', express.static('public/uploads'))
+
 
 // Session configuration
 const SQLiteStoreSession = SQLiteStore(session)
@@ -90,6 +96,8 @@ app.use('/api/elections', authLimiter, electionRoutes)
 app.use('/api/voting', authLimiter, votingRoutes)
 app.use('/api/audit', authLimiter, auditRoutes)
 app.use('/api/bulk-import', authLimiter, bulkImportRoutes)
+app.use('/api/admin/stats', authLimiter, adminStatsRoutes)
+app.use('/api/upload', authLimiter, uploadRoutes)
 
 /**
  * health

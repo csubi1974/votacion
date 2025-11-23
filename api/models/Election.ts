@@ -17,9 +17,9 @@ export interface ElectionAttributes {
   isPublic: boolean;
 }
 
-export type ElectionCreationAttributes = Omit<ElectionAttributes, 'id' | 'status'>;
+export type ElectionCreationAttributes = Omit<ElectionAttributes, 'id'> & { status?: ElectionStatus };
 
-export class Election extends Model<ElectionAttributes, ElectionCreationAttributes> 
+export class Election extends Model<ElectionAttributes, ElectionCreationAttributes>
   implements ElectionAttributes {
   declare id: string;
   declare organizationId: string;

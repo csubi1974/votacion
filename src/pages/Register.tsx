@@ -7,7 +7,7 @@ import useAuthStore from '../stores/authStore';
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const { register, isLoading, error, clearError } = useAuthStore();
-  
+
   const [formData, setFormData] = useState({
     rut: '',
     email: '',
@@ -23,7 +23,7 @@ const Register: React.FC = () => {
 
   const validatePassword = (password: string) => {
     const errors: string[] = [];
-    
+
     if (password.length < 8) {
       errors.push('Al menos 8 caracteres');
     }
@@ -36,7 +36,7 @@ const Register: React.FC = () => {
     if (!/\d/.test(password)) {
       errors.push('Un número');
     }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    if (!/[@$!%*?&.\-_#]/.test(password)) {
       errors.push('Un carácter especial');
     }
 
@@ -50,11 +50,11 @@ const Register: React.FC = () => {
       ...prev,
       [name]: value,
     }));
-    
+
     if (name === 'password') {
       validatePassword(value);
     }
-    
+
     if (error) clearError();
   };
 
@@ -79,56 +79,63 @@ const Register: React.FC = () => {
   const validateRut = (rut: string): boolean => {
     const cleanRut = rut.replace(/[^0-9kK]/g, '').toUpperCase();
     if (cleanRut.length < 2) return false;
-    
+
     const body = cleanRut.slice(0, -1);
     const verifier = cleanRut.slice(-1);
-    
+
     if (!/^\d+$/.test(body)) return false;
-    
+
     let sum = 0;
     let multiplier = 2;
-    
+
     for (let i = body.length - 1; i >= 0; i--) {
       sum += parseInt(body[i]) * multiplier;
       multiplier = multiplier === 7 ? 2 : multiplier + 1;
     }
-    
+
     const remainder = 11 - (sum % 11);
     const expectedVerifier = remainder === 11 ? '0' : remainder === 10 ? 'K' : remainder.toString();
-    
+
     return verifier === expectedVerifier;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateRut(formData.rut)) {
       toast.error('RUT inválido');
       return;
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Las contraseñas no coinciden');
       return;
     }
-    
+
     if (passwordErrors.length > 0) {
       toast.error('La contraseña no cumple con los requisitos');
       return;
     }
-    
+
     try {
-      await register({
+      const registerData: any = {
         rut: formData.rut,
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
-        organizationId: formData.organizationId,
-      });
-      
+      };
+
+      // Solo incluir organizationId si tiene un valor
+      if (formData.organizationId && formData.organizationId.trim() !== '') {
+        registerData.organizationId = formData.organizationId.trim();
+      }
+
+      await register(registerData);
+
       toast.success('Registro exitoso. Por favor verifica tu email para continuar.');
       navigate('/login');
     } catch (error) {
+      console.error('Registration error:', error);
       toast.error(error instanceof Error ? error.message : 'Error en el registro');
     }
   };
@@ -208,7 +215,7 @@ const Register: React.FC = () => {
 
             <div>
               <label htmlFor="organizationId" className="block text-sm font-medium text-gray-700 mb-2">
-                ID de Organización
+                ID de Organización (Opcional)
               </label>
               <input
                 type="text"
@@ -217,9 +224,11 @@ const Register: React.FC = () => {
                 value={formData.organizationId}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ingresa el ID de tu organización"
-                required
+                placeholder="Deja en blanco para usar organización por defecto"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Si tienes un ID de organización específico, ingrésalo aquí. De lo contrario, se te asignará a la organización por defecto.
+              </p>
             </div>
 
             <div>
@@ -249,7 +258,7 @@ const Register: React.FC = () => {
                   )}
                 </button>
               </div>
-              
+
               {formData.password && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-1">
@@ -259,8 +268,8 @@ const Register: React.FC = () => {
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`} 
-                         style={{ width: `${(passwordStrength / 4) * 100}%` }}></div>
+                    <div className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
+                      style={{ width: `${(passwordStrength / 4) * 100}%` }}></div>
                   </div>
                   {passwordErrors.length > 0 && (
                     <div className="mt-2 text-xs text-red-600">
@@ -306,7 +315,7 @@ const Register: React.FC = () => {
                   )}
                 </button>
               </div>
-              
+
               {formData.confirmPassword && formData.password === formData.confirmPassword && (
                 <div className="mt-1 flex items-center text-green-600 text-sm">
                   <CheckCircle className="w-4 h-4 mr-1" />

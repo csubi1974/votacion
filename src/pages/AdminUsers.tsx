@@ -219,9 +219,9 @@ export default function AdminUsers() {
                       {getRoleText(user.role)}
                     </span>
                     <div className="flex items-center space-x-2">
-                      <button className="text-gray-600 hover:text-gray-800">
+                      <Link to={`/admin/users/${user.id}/edit`} className="text-gray-600 hover:text-gray-800">
                         <Edit className="h-5 w-5" />
-                      </button>
+                      </Link>
                       <button
                         onClick={() => handleDeleteUser(user.id)}
                         className="text-red-600 hover:text-red-800"

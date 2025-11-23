@@ -37,7 +37,7 @@ export default function ElectionResults() {
   const fetchResults = async () => {
     if (!id) return;
     try {
-      const response = await fetch(`/api/admin/elections/${id}/results`, {
+      const response = await fetch(`/api/voting/elections/${id}/results`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },

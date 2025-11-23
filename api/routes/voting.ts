@@ -17,6 +17,10 @@ type AuthenticatedRequest = Request & { user: { id: string; organizationId: stri
 
 router.get('/available', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    // Auto-update statuses before fetching
+    const { ElectionScheduler } = await import('../services/ElectionScheduler.js');
+    await ElectionScheduler.updateElectionStatuses();
+
     const userId = req.user.id;
     const organizationId = req.user.organizationId;
 
@@ -31,6 +35,26 @@ router.get('/available', authenticateToken, async (req: AuthenticatedRequest, re
     res.status(500).json({
       success: false,
       message: 'Error al cargar elecciones disponibles'
+    });
+  }
+});
+
+// Get completed elections for results viewing
+router.get('/completed', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const organizationId = req.user.organizationId;
+
+    const elections = await votingService.getCompletedElections(organizationId);
+
+    res.json({
+      success: true,
+      data: elections
+    });
+  } catch (error) {
+    console.error('Completed elections error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al cargar elecciones completadas'
     });
   }
 });

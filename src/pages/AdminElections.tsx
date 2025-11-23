@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Search, BarChart3, Vote } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Search, BarChart3, Vote, StopCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../stores/authStore';
 
@@ -60,7 +60,7 @@ export default function AdminElections() {
     fetchElections();
   }, [fetchElections, currentPage]);
 
-  
+
 
   const handleDeleteElection = async (electionId: string) => {
     if (!confirm('¿Está seguro de que desea eliminar esta elección?')) {
@@ -84,6 +84,66 @@ export default function AdminElections() {
     } catch (error) {
       toast.error('Error al eliminar elección');
       console.error('Election deletion error:', error);
+    }
+  };
+
+  const handleCancelElection = async (electionId: string, electionTitle: string) => {
+    if (!confirm(`¿Está seguro de que desea detener/cancelar la elección "${electionTitle}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/elections/${electionId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'cancelled'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to cancel election');
+      }
+
+      toast.success('Elección cancelada exitosamente');
+      fetchElections();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al cancelar elección');
+      console.error('Election cancellation error:', error);
+    }
+  };
+
+  const handleCompleteElection = async (electionId: string, electionTitle: string) => {
+    if (!confirm(`¿Está seguro de que desea finalizar la elección "${electionTitle}"? Los resultados quedarán visibles para todos los votantes.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/elections/${electionId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'completed'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to complete election');
+      }
+
+      toast.success('Elección finalizada exitosamente. Los resultados ahora son visibles.');
+      fetchElections();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al finalizar elección');
+      console.error('Election completion error:', error);
     }
   };
 
@@ -249,9 +309,31 @@ export default function AdminElections() {
                       >
                         <Eye className="h-5 w-5" />
                       </Link>
-                      <button className="text-gray-600 hover:text-gray-800" title="Editar">
+                      <Link
+                        to={`/admin/elections/${election.id}/edit`}
+                        className="text-gray-600 hover:text-gray-800"
+                        title="Editar"
+                      >
                         <Edit className="h-5 w-5" />
-                      </button>
+                      </Link>
+                      {election.status === 'active' && (
+                        <button
+                          onClick={() => handleCompleteElection(election.id, election.title)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Finalizar elección (mostrar resultados)"
+                        >
+                          <CheckCircle className="h-5 w-5" />
+                        </button>
+                      )}
+                      {(election.status === 'active' || election.status === 'scheduled') && (
+                        <button
+                          onClick={() => handleCancelElection(election.id, election.title)}
+                          className="text-orange-600 hover:text-orange-800"
+                          title="Detener/Cancelar elección"
+                        >
+                          <StopCircle className="h-5 w-5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDeleteElection(election.id)}
                         className="text-red-600 hover:text-red-800"

@@ -1,10 +1,6 @@
 import express, { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { User } from '../models/User.js';
-import { Organization } from '../models/Organization.js';
-import { Election } from '../models/Election.js';
-import { ElectionOption } from '../models/ElectionOption.js';
-import { Vote } from '../models/Vote.js';
+import { User, Organization, Election, ElectionOption, Vote } from '../models/index.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { Op } from 'sequelize';
 
@@ -25,7 +21,7 @@ const validateUser = [
   body('rut').isString().isLength({ min: 8, max: 12 }).withMessage('RUT must be 8-12 characters'),
   body('email').isEmail().withMessage('Valid email required'),
   body('fullName').isString().isLength({ min: 2, max: 100 }).withMessage('Full name must be 2-100 characters'),
-  body('role').isIn(['voter', 'admin']).withMessage('Role must be voter or admin'),
+  body('role').isIn(['voter', 'admin', 'super_admin']).withMessage('Role must be voter, admin or super_admin'),
 ];
 
 // Get dashboard statistics
@@ -52,7 +48,7 @@ router.get('/dashboard', authenticateToken, requireRole(['admin', 'super_admin']
     ] = await Promise.all([
       User.count({ where: whereClause }),
       Election.count({ where: whereClause }),
-      Election.count({ 
+      Election.count({
         where: {
           ...whereClause,
           status: 'active',
@@ -63,6 +59,7 @@ router.get('/dashboard', authenticateToken, requireRole(['admin', 'super_admin']
       Vote.count({
         include: [{
           model: Election,
+          as: 'election',
           where: whereClause,
           required: true
         }]
@@ -178,8 +175,20 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       });
     }
 
-    const { rut, email, fullName, role } = req.body;
-    const organizationId = req.user.organizationId;
+    const { rut, email, fullName, role, password, organizationId: requestedOrgId } = req.body;
+    const userRole = req.user.role;
+    const userOrgId = req.user.organizationId;
+
+    // Permission check: Admins cannot create super_admins
+    if (userRole === 'admin' && role === 'super_admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admins cannot create super administrators'
+      });
+    }
+
+    // Determine organization ID (super_admins can choose, admins use their own)
+    const organizationId = (userRole === 'super_admin' && requestedOrgId) ? requestedOrgId : userOrgId;
 
     // Check if user already exists
     const existingUser = await User.findOne({
@@ -195,10 +204,17 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       });
     }
 
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8);
+    // Use provided password or generate temporary one
+    let passwordToUse = password;
+    let temporaryPassword = null;
+
+    if (!passwordToUse) {
+      temporaryPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
+      passwordToUse = temporaryPassword;
+    }
+
     const { hashPassword } = await import('../utils/security.js');
-    const passwordHash = await hashPassword(temporaryPassword);
+    const passwordHash = await hashPassword(passwordToUse);
 
     const user = await User.create({
       rut,
@@ -207,15 +223,19 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       role,
       organizationId,
       passwordHash,
-
+      emailVerified: true, // Auto-verify admin-created users
     });
 
-    // TODO: Send email with temporary password
-    console.log(`Temporary password for ${email}: ${temporaryPassword}`);
+    // Log temporary password if generated
+    if (temporaryPassword) {
+      console.log(`Temporary password for ${email}: ${temporaryPassword}`);
+    }
 
     res.json({
       success: true,
-      message: 'User created successfully. Temporary password sent to email.',
+      message: temporaryPassword
+        ? 'User created successfully. Temporary password logged to console.'
+        : 'User created successfully.',
       data: {
         id: user.id,
         rut: user.rut,
@@ -327,6 +347,10 @@ router.delete('/users/:id', authenticateToken, requireRole(['admin', 'super_admi
 // Election management routes
 router.get('/elections', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
   try {
+    // Auto-update statuses before fetching
+    const { ElectionScheduler } = await import('../services/ElectionScheduler.js');
+    await ElectionScheduler.updateElectionStatuses();
+
     const { page = '1', limit = '10', status = '', search = '' } = req.query as Record<string, string>;
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
@@ -406,18 +430,11 @@ router.post('/elections', authenticateToken, requireRole(['admin', 'super_admin'
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     if (start >= end) {
       return res.status(400).json({
         success: false,
         message: 'End date must be after start date'
-      });
-    }
-
-    if (start < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Start date must be in the future'
       });
     }
 
@@ -427,6 +444,13 @@ router.post('/elections', authenticateToken, requireRole(['admin', 'super_admin'
         success: false,
         message: 'At least 2 options are required'
       });
+    }
+
+    // Determine initial status based on dates
+    const now = new Date();
+    let initialStatus = 'scheduled';
+    if (start <= now && end > now) {
+      initialStatus = 'active';
     }
 
     // Create election
@@ -439,12 +463,12 @@ router.post('/elections', authenticateToken, requireRole(['admin', 'super_admin'
       maxVotesPerUser,
       isPublic,
       organizationId,
-
+      status: initialStatus as any,
     });
 
     // Create options
     const electionOptions = await Promise.all(
-      options.map((option, index) => 
+      options.map((option, index) =>
         ElectionOption.create({
           electionId: election.id,
           text: option.text,
@@ -492,12 +516,19 @@ router.put('/elections/:id', authenticateToken, requireRole(['admin', 'super_adm
       });
     }
 
-    // Prevent editing elections that have already started
-    if (election.status === 'active' || election.status === 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot edit elections that have already started'
-      });
+    // Allow editing if election is scheduled, or if only changing status
+    // If election is active/completed, prevent changing critical fields unless super_admin
+    if ((election.status === 'active' || election.status === 'completed') && userRole !== 'super_admin') {
+      // If trying to change critical fields
+      if (title || description || startDate || endDate || category || maxVotesPerUser) {
+        // Allow status change (e.g. to cancel)
+        if (!status) {
+          return res.status(400).json({
+            success: false,
+            message: 'Cannot edit critical fields of active/completed elections'
+          });
+        }
+      }
     }
 
     await election.update({
@@ -635,6 +666,80 @@ router.get('/elections/:id/results', authenticateToken, requireRole(['admin', 's
     res.status(500).json({
       success: false,
       message: 'Failed to load election results'
+    });
+  }
+});
+
+
+// Get single user by ID
+router.get('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organizationId;
+    const userRole = req.user.role;
+
+    const whereClause: Record<string, unknown> = { id };
+    if (userRole !== 'super_admin') {
+      whereClause.organizationId = organizationId;
+    }
+
+    const user = await User.findOne({
+      where: whereClause,
+      attributes: ['id', 'rut', 'email', 'fullName', 'role', 'organizationId', 'emailVerified', 'twoFactorEnabled', 'createdAt'],
+      include: [{
+        model: Organization,
+        as: 'organization',
+        attributes: ['id', 'name', 'rut']
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('User fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load user'
+    });
+  }
+});
+
+// Get organizations list
+router.get('/organizations', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
+  try {
+    const userRole = req.user.role;
+    const organizationId = req.user.organizationId;
+
+    const whereClause: Record<string, unknown> = {};
+    // Super admins can see all organizations, regular admins only their own
+    if (userRole !== 'super_admin') {
+      whereClause.id = organizationId;
+    }
+
+    const organizations = await Organization.findAll({
+      where: whereClause,
+      attributes: ['id', 'name', 'rut', 'email'],
+      order: [['name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: organizations
+    });
+  } catch (error) {
+    console.error('Organizations fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load organizations'
     });
   }
 });

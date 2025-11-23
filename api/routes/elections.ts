@@ -67,8 +67,19 @@ router.post(
       .withMessage('La descripción de la opción no puede exceder 500 caracteres'),
     body('options.*.imageUrl')
       .optional()
-      .isURL()
-      .withMessage('La URL de la imagen debe ser válida'),
+      .custom((value) => {
+        if (!value || value === '') return true;
+        // Aceptar rutas relativas que empiecen con /
+        if (value.startsWith('/')) return true;
+        // Validar URLs absolutas
+        try {
+          new URL(value);
+          return true;
+        } catch {
+          return false;
+        }
+      })
+      .withMessage('La URL de la imagen debe ser válida o una ruta relativa'),
   ],
   handleValidationErrors,
   async (req: Request & { user: { id: string; organizationId: string } }, res: Response, next: NextFunction) => {
@@ -225,8 +236,19 @@ router.put(
       .withMessage('La descripción de la opción no puede exceder 500 caracteres'),
     body('options.*.imageUrl')
       .optional()
-      .isURL()
-      .withMessage('La URL de la imagen debe ser válida'),
+      .custom((value) => {
+        if (!value || value === '') return true;
+        // Aceptar rutas relativas que empiecen con /
+        if (value.startsWith('/')) return true;
+        // Validar URLs absolutas
+        try {
+          new URL(value);
+          return true;
+        } catch {
+          return false;
+        }
+      })
+      .withMessage('La URL de la imagen debe ser válida o una ruta relativa'),
   ],
   handleValidationErrors,
   async (req: Request & { user: { id: string; organizationId: string } }, res: Response, next: NextFunction) => {
