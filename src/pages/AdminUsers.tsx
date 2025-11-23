@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Mail, Shield, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
 
 interface User {
   id: number;
@@ -20,6 +21,7 @@ interface User {
 }
 
 export default function AdminUsers() {
+  const { accessToken } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +39,7 @@ export default function AdminUsers() {
 
       const response = await fetch(`/api/admin/users?${params}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
@@ -54,13 +56,13 @@ export default function AdminUsers() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, roleFilter, currentPage]);
+  }, [searchTerm, roleFilter, currentPage, accessToken]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  
+
 
   const handleDeleteUser = async (userId: number) => {
     if (!confirm('¿Está seguro de que desea eliminar este usuario?')) {

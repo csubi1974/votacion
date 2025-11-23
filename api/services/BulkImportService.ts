@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import { User } from '../models/User.js';
 import { hashPassword } from '../utils/security.js';
-import { validateRut } from '../utils/validation.js';
+import { validateRut } from '../utils/rutValidator.js';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ImportRow {
