@@ -98,78 +98,51 @@ export default function UserProfile() {
         }
     };
 
-    const validatePassword = (password: string) => {
-        const errors: string[] = [];
-
-        if (password.length < 8) {
-            errors.push('Al menos 8 caracteres');
-        }
-        if (!/[A-Z]/.test(password)) {
-            errors.push('Una mayúscula');
-        }
-        if (!/[a-z]/.test(password)) {
-            errors.push('Una minúscula');
-        }
-        if (!/\d/.test(password)) {
-            errors.push('Un número');
-        }
-        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-            errors.push('Un carácter especial');
-        }
-
-        setPasswordErrors(errors);
-        setPasswordStrength(errors.length === 0 ? 4 : Math.max(0, 4 - errors.length));
-    };
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value,
-        }));
+        setFormData(prev => ({ ...prev, [name]: value }));
 
         if (name === 'newPassword') {
             validatePassword(value);
         }
     };
 
+    const validatePassword = (password: string) => {
+        let strength = 0;
+        const errors: string[] = [];
+
+        if (password.length >= 8) strength++;
+        else errors.push('Mínimo 8 caracteres');
+
+        if (/[A-Z]/.test(password)) strength++;
+        else errors.push('Al menos una mayúscula');
+
+        if (/[0-9]/.test(password)) strength++;
+        else errors.push('Al menos un número');
+
+        if (/[^A-Za-z0-9]/.test(password)) strength++;
+        else errors.push('Al menos un carácter especial');
+
+        setPasswordStrength(strength);
+        setPasswordErrors(errors);
+    };
+
     const getPasswordStrengthColor = () => {
         switch (passwordStrength) {
+            case 0: return 'bg-gray-200';
             case 1: return 'bg-red-500';
-            case 2: return 'bg-orange-500';
-            case 3: return 'bg-yellow-500';
+            case 2: return 'bg-yellow-500';
+            case 3: return 'bg-blue-500';
             case 4: return 'bg-green-500';
-            default: return 'bg-gray-300';
+            default: return 'bg-gray-200';
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Validate password change if attempting
-        if (formData.newPassword || formData.currentPassword) {
-            if (!formData.currentPassword) {
-                toast.error('Ingresa tu contraseña actual');
-                return;
-            }
-            if (!formData.newPassword) {
-                toast.error('Ingresa una nueva contraseña');
-                return;
-            }
-            if (formData.newPassword !== formData.confirmPassword) {
-                toast.error('Las contraseñas no coinciden');
-                return;
-            }
-            if (passwordErrors.length > 0) {
-                toast.error('La contraseña no cumple con los requisitos');
-                return;
-            }
-        }
+        setIsLoading(true);
 
         try {
-            setIsLoading(true);
-
-            // Fetch CSRF token
             const csrfResponse = await fetch('/api/csrf-token');
             const csrfData = await csrfResponse.json();
             const csrfToken = csrfData.csrfToken;
@@ -308,84 +281,71 @@ export default function UserProfile() {
         if (response.ok) {
             toast.success('2FA desactivado exitosamente');
             updateUser({ twoFactorEnabled: false });
+            setShowDisable2FAModal(false);
         } else {
             toast.error(data.message || 'Error al desactivar 2FA');
             throw new Error(data.message);
         }
     };
 
-    if (!user) {
-        return null;
-    }
+    if (!user) return null;
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
-                <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <div className="flex items-center space-x-4">
-                        <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-3xl font-bold text-blue-600">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <div className="bg-blue-600 px-6 py-4">
+                        <div className="flex items-center">
+                            <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center text-blue-600 text-2xl font-bold">
                                 {user.fullName.charAt(0).toUpperCase()}
-                            </span>
-                        </div>
-                        <div className="flex-1">
-                            <h1 className="text-2xl font-bold text-gray-900">{user.fullName}</h1>
-                            <p className="text-gray-600">{user.email}</p>
-                            <div className="flex items-center space-x-2 mt-2">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
-                                    {user.role}
-                                </span>
-                                {user.emailVerified && (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        Email Verificado
-                                    </span>
-                                )}
-                                {user.twoFactorEnabled && (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        <Shield className="w-3 h-3 mr-1" />
-                                        2FA Activo
-                                    </span>
-                                )}
+                            </div>
+                            <div className="ml-4 text-white">
+                                <h1 className="text-2xl font-bold">{user.fullName}</h1>
+                                <div className="flex items-center mt-1 text-blue-100">
+                                    <Mail className="w-4 h-4 mr-1" />
+                                    {user.email}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Tabs */}
-                <div className="bg-white rounded-lg shadow-sm mb-6">
                     <div className="border-b border-gray-200">
                         <nav className="flex -mb-px">
                             <button
                                 onClick={() => setActiveTab('info')}
-                                className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'info'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'info'
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
-                                <User className="w-4 h-4 inline mr-2" />
-                                Información Personal
+                                <div className="flex items-center justify-center">
+                                    <User className="w-4 h-4 mr-2" />
+                                    Información Personal
+                                </div>
                             </button>
                             <button
                                 onClick={() => setActiveTab('security')}
-                                className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'security'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'security'
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
-                                <Shield className="w-4 h-4 inline mr-2" />
-                                Seguridad
+                                <div className="flex items-center justify-center">
+                                    <Shield className="w-4 h-4 mr-2" />
+                                    Seguridad
+                                </div>
                             </button>
                             <button
                                 onClick={() => setActiveTab('activity')}
-                                className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${activeTab === 'activity'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'activity'
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
-                                <Clock className="w-4 h-4 inline mr-2" />
-                                Actividad Reciente
+                                <div className="flex items-center justify-center">
+                                    <Clock className="w-4 h-4 mr-2" />
+                                    Actividad Reciente
+                                </div>
                             </button>
                         </nav>
                     </div>
@@ -395,44 +355,62 @@ export default function UserProfile() {
                         {activeTab === 'info' && (
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        RUT
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={user.rut}
-                                        disabled
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">El RUT no puede ser modificado</p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={user.email}
-                                        disabled
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">El email no puede ser modificado</p>
-                                </div>
-
-                                <div>
                                     <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
                                         Nombre Completo
                                     </label>
-                                    <input
-                                        type="text"
-                                        id="fullName"
-                                        name="fullName"
-                                        value={formData.fullName}
-                                        onChange={handleInputChange}
-                                        disabled={!isEditing || isLoading}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
-                                    />
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <User className="h-5 w-5 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            id="fullName"
+                                            name="fullName"
+                                            value={formData.fullName}
+                                            onChange={handleInputChange}
+                                            disabled={!isEditing || isLoading}
+                                            className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                                        Correo Electrónico
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Mail className="h-5 w-5 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            id="email"
+                                            value={user.email}
+                                            disabled
+                                            className="pl-10 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 sm:text-sm cursor-not-allowed"
+                                        />
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        El correo electrónico no se puede cambiar.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="rut" className="block text-sm font-medium text-gray-700 mb-2">
+                                        RUT
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Shield className="h-5 w-5 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            id="rut"
+                                            value={user.rut}
+                                            disabled
+                                            className="pl-10 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 sm:text-sm cursor-not-allowed"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center justify-end space-x-3 pt-4">
@@ -658,49 +636,89 @@ export default function UserProfile() {
                                             )}
                                         </div>
                                     </div>
-                        )}
 
-                                    {/* Activity Tab */}
-                                    {activeTab === 'activity' && (
-                                        <div className="space-y-4">
-                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Actividad Reciente</h3>
-
-                                            {activityLogs.length === 0 ? (
-                                                <div className="text-center py-12">
-                                                    <Clock className="mx-auto h-12 w-12 text-gray-400" />
-                                                    <h3 className="mt-2 text-sm font-medium text-gray-900">No hay actividad reciente</h3>
-                                                    <p className="mt-1 text-sm text-gray-500">
-                                                        Tus acciones aparecerán aquí.
-                                                    </p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-3">
-                                                    {activityLogs.map((log) => (
-                                                        <div key={log.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                                            <div className="flex items-start justify-between">
-                                                                <div className="flex-1">
-                                                                    <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                                                                    <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-                                                                        <span className="flex items-center">
-                                                                            <Clock className="w-3 h-3 mr-1" />
-                                                                            {new Date(log.createdAt).toLocaleString('es-CL')}
-                                                                        </span>
-                                                                        <span className="flex items-center">
-                                                                            <MapPin className="w-3 h-3 mr-1" />
-                                                                            {log.ipAddress}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
+                                    {!user.twoFactorEnabled ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleEnable2FA}
+                                            className="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                                        >
+                                            <Shield className="w-4 h-4 mr-2" />
+                                            Activar 2FA
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={handleDisable2FA}
+                                            className="w-full inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                        >
+                                            Desactivar 2FA
+                                        </button>
                                     )}
                                 </div>
                             </div>
-            </div>
+                        )}
+
+                        {/* Activity Tab */}
+                        {activeTab === 'activity' && (
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium text-gray-900 mb-4">Actividad Reciente</h3>
+
+                                {activityLogs.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <Clock className="mx-auto h-12 w-12 text-gray-400" />
+                                        <h3 className="mt-2 text-sm font-medium text-gray-900">No hay actividad reciente</h3>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            Tus acciones aparecerán aquí.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {activityLogs.map((log) => (
+                                            <div key={log.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-medium text-gray-900">{log.action}</p>
+                                                        <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
+                                                            <span className="flex items-center">
+                                                                <Clock className="w-3 h-3 mr-1" />
+                                                                {new Date(log.createdAt).toLocaleString('es-CL')}
+                                                            </span>
+                                                            <span className="flex items-center">
+                                                                <MapPin className="w-3 h-3 mr-1" />
+                                                                {log.ipAddress}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                );
+
+                {/* 2FA Modals */}
+                <Enable2FAModal
+                    isOpen={showEnable2FAModal}
+                    onClose={() => {
+                        setShowEnable2FAModal(false);
+                        setRecoveryCodes([]);
+                    }}
+                    qrCodeUrl={qrCodeUrl}
+                    secret={twoFactorSecret}
+                    onConfirm={handleConfirmEnable2FA}
+                    recoveryCodes={recoveryCodes.length > 0 ? recoveryCodes : undefined}
+                />
+
+                <Disable2FAModal
+                    isOpen={showDisable2FAModal}
+                    onClose={() => setShowDisable2FAModal(false)}
+                    onConfirm={handleConfirmDisable2FA}
+                />
+            </div>
+        </div>
+    );
 }

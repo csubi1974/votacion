@@ -69,12 +69,6 @@ export default function Enable2FAModal({
     };
 
     const handleClose = () => {
-        if (step === 'codes' && recoveryCodes) {
-            // Advertir antes de cerrar si no han guardado los códigos
-            if (!confirm('¿Has guardado tus códigos de recuperación? No podrás verlos nuevamente.')) {
-                return;
-            }
-        }
         setVerificationCode('');
         setStep('qr');
         onClose();
