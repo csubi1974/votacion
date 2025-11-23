@@ -16,15 +16,16 @@ import adminRoutes from './routes/admin.js'
 import votingRoutes from './routes/voting.js'
 import auditRoutes from './routes/audit.js'
 import electionRoutes from './routes/elections.js'
+import bulkImportRoutes from './routes/bulkImport.js'
 import { connectDatabase } from './config/database.js'
 import './models/index.js'
-import { 
-  securityHeaders, 
-  sanitizeInput, 
-  csrfProtection, 
-  generalLimiter, 
-  authLimiter, 
-  xssProtection, 
+import {
+  securityHeaders,
+  sanitizeInput,
+  csrfProtection,
+  generalLimiter,
+  authLimiter,
+  xssProtection,
   validateInput,
   securityAudit,
   generateCSRFToken
@@ -88,6 +89,7 @@ app.use('/api/admin', authLimiter, adminRoutes)
 app.use('/api/elections', authLimiter, electionRoutes)
 app.use('/api/voting', authLimiter, votingRoutes)
 app.use('/api/audit', authLimiter, auditRoutes)
+app.use('/api/bulk-import', authLimiter, bulkImportRoutes)
 
 /**
  * health

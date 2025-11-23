@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { BarChart3, Users, Settings, LogOut, Menu, X, Vote, FileText } from 'lucide-react';
+import { BarChart3, Users, Settings, LogOut, Menu, X, Vote, FileText, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AdminLayout() {
@@ -23,6 +23,7 @@ export default function AdminLayout() {
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: BarChart3 },
     { name: 'Usuarios', href: '/admin/users', icon: Users },
+    { name: 'Importar Usuarios', href: '/admin/bulk-import', icon: Upload },
     { name: 'Elecciones', href: '/admin/elections', icon: Vote },
     { name: 'Auditoría', href: '/admin/audit', icon: FileText },
     ...(user?.role === 'super_admin' ? [{ name: 'Configuración', href: '/admin/settings', icon: Settings }] : []),

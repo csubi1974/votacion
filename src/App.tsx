@@ -16,6 +16,7 @@ import AuditLogsPage from "@/pages/AuditLogs";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import UserProfile from "@/pages/UserProfile";
+import BulkImport from "@/pages/BulkImport";
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
           >
             <Route index element={<AdminDashboardPage />} />
             <Route path="users" element={<AdminUsersPage />} />
+            <Route path="bulk-import" element={<BulkImport />} />
             <Route path="elections" element={<AdminElectionsPage />} />
             <Route path="elections/new" element={<AdminElectionForm />} />
             <Route path="elections/:id/edit" element={<AdminElectionForm />} />
