@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { TrendingUp, Users, Calendar, ArrowLeft, Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, Users, Calendar, ArrowLeft, Download, FileText, FileSpreadsheet, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { exportToPDF, exportToExcel, exportToCSV } from '../utils/exportResults';
 import { useAuthStore } from '../stores/authStore';
+import { io } from 'socket.io-client';
 
 interface ElectionResult {
   election: {
@@ -31,32 +32,69 @@ export default function ElectionResults() {
   const { accessToken } = useAuthStore();
   const [results, setResults] = useState<ElectionResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
 
+  const fetchResults = async () => {
+    if (!id) return;
+    try {
+      const response = await fetch(`/api/admin/elections/${id}/results`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch election results');
+      }
+
+      const data = await response.json();
+      setResults(data.data);
+    } catch (error) {
+      console.error('Election results fetch error:', error);
+      toast.error('Error al actualizar resultados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchResults();
+  }, [id, accessToken]);
+
+  // Socket connection
   useEffect(() => {
     if (!id) return;
-    const run = async () => {
-      try {
-        const response = await fetch(`/api/admin/elections/${id}/results`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch election results');
-        }
+    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+      withCredentials: true,
+    });
 
-        const data = await response.json();
-        setResults(data.data);
-      } catch (error) {
-        toast.error('Error al cargar resultados de la elección');
-        console.error('Election results fetch error:', error);
-      } finally {
-        setLoading(false);
-      }
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket');
+      setIsConnected(true);
+      socket.emit('join_election', id);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket');
+      setIsConnected(false);
+    });
+
+    socket.on('vote_update', (data) => {
+      console.log('New vote received:', data);
+      toast.info('¡Nuevo voto registrado! Actualizando resultados...', {
+        duration: 2000,
+        icon: '🗳️'
+      });
+      fetchResults();
+    });
+
+    return () => {
+      socket.emit('leave_election', id);
+      socket.disconnect();
     };
-    run();
-  }, [id, accessToken]);
+  }, [id]);
 
 
 
@@ -90,16 +128,20 @@ export default function ElectionResults() {
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link
-              to="/admin/elections"
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <ArrowLeft className="-ml-0.5 mr-2 h-4 w-4" />
-              Volver
+            <Link to="/admin/elections" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <ArrowLeft className="w-6 h-6 text-gray-600" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{results.election.title}</h1>
-              <p className="mt-1 text-gray-600">{results.election.description}</p>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">{results.election.title}</h1>
+                {isConnected && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 animate-pulse">
+                    <Activity className="w-3 h-3 mr-1" />
+                    En vivo
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-500 mt-1">{results.election.description}</p>
             </div>
           </div>
           <div className="flex space-x-2">

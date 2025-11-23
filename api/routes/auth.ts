@@ -861,7 +861,7 @@ router.post('/2fa/enable', [
 router.post('/2fa/disable', [
   authenticateToken,
   body('code')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 6, max: 6 })
     .withMessage('El código debe tener 6 dígitos'),

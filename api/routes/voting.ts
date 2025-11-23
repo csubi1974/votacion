@@ -146,6 +146,19 @@ router.post('/cast', authenticateToken, validateVote, async (req: AuthenticatedR
       userAgent
     });
 
+    // Emit real-time update
+    try {
+      const { getIO } = await import('../config/socket.js');
+      const io = getIO();
+      io.to(`election_${electionId}`).emit('vote_update', {
+        electionId,
+        timestamp: new Date().toISOString()
+      });
+    } catch (socketError) {
+      console.error('Socket emission error:', socketError);
+      // Don't fail the request if socket fails
+    }
+
     res.json({
       success: true,
       message: 'Voto registrado exitosamente',
