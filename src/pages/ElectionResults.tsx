@@ -4,6 +4,7 @@ import { TrendingUp, Users, Calendar, ArrowLeft, Download, FileText, FileSpreads
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { exportToPDF, exportToExcel, exportToCSV } from '../utils/exportResults';
+import { useAuthStore } from '../stores/authStore';
 
 interface ElectionResult {
   election: {
@@ -27,6 +28,7 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
 
 export default function ElectionResults() {
   const { id } = useParams<{ id: string }>();
+  const { accessToken } = useAuthStore();
   const [results, setResults] = useState<ElectionResult | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +38,7 @@ export default function ElectionResults() {
       try {
         const response = await fetch(`/api/admin/elections/${id}/results`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
         });
 
@@ -54,7 +56,7 @@ export default function ElectionResults() {
       }
     };
     run();
-  }, [id]);
+  }, [id, accessToken]);
 
 
 
@@ -182,26 +184,40 @@ export default function ElectionResults() {
         {/* Pie Chart */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Distribución de Votos</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={results.results}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ text, percentage }) => `${text}: ${percentage.toFixed(1)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="votes"
-                >
-                  {results.results.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-8">
+            <div className="h-64 w-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={results.results}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="votes"
+                  >
+                    {results.results.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-col space-y-2">
+              {results.results.map((result, index) => (
+                <div key={result.optionId} className="flex items-center space-x-3">
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-sm text-gray-700">
+                    {result.text}: <span className="font-semibold">{result.percentage.toFixed(1)}%</span>
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
