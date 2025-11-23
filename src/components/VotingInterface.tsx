@@ -8,8 +8,7 @@ import confetti from 'canvas-confetti';
 
 interface ElectionOption {
   id: string;
-  title: string;
-  description?: string;
+  text: string;
   imageUrl?: string;
   orderIndex: number;
 }
@@ -387,8 +386,8 @@ export default function VotingInterface() {
                     <div
                       key={option.id}
                       className={`border-2 rounded-lg p-4 cursor-pointer transition-all duration-300 ${selectedOptions.includes(option.id)
-                          ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-md scale-105'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-md scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                         }`}
                       onClick={() => handleOptionToggle(option.id)}
                     >
@@ -402,10 +401,7 @@ export default function VotingInterface() {
                           />
                         </div>
                         <div className="ml-3 flex-1">
-                          <h3 className="text-sm font-medium text-gray-900">{option.title}</h3>
-                          {option.description && (
-                            <p className="text-sm text-gray-600 mt-1">{option.description}</p>
-                          )}
+                          <h3 className="text-sm font-medium text-gray-900">{option.text}</h3>
                         </div>
                         {selectedOptions.includes(option.id) && (
                           <CheckCircle className="w-5 h-5 text-blue-600 animate-pulse" />
@@ -460,7 +456,7 @@ export default function VotingInterface() {
                       return (
                         <li key={optionId} className="flex items-center text-sm text-gray-700 bg-green-50 p-2 rounded-lg">
                           <Check className="w-5 h-5 text-green-600 mr-2" />
-                          <span className="font-medium">{option?.title}</span>
+                          <span className="font-medium">{option?.text}</span>
                         </li>
                       );
                     })}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { TrendingUp, Users, Calendar, ArrowLeft, Download } from 'lucide-react';
+import { TrendingUp, Users, Calendar, ArrowLeft, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { exportToPDF, exportToExcel, exportToCSV } from '../utils/exportResults';
 
 interface ElectionResult {
   election: {
@@ -55,7 +56,7 @@ export default function ElectionResults() {
     run();
   }, [id]);
 
-  
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-CL', {
@@ -63,29 +64,6 @@ export default function ElectionResults() {
       month: 'long',
       day: 'numeric',
     });
-  };
-
-  const exportResults = () => {
-    if (!results) return;
-
-    const csvContent = [
-      ['Opción', 'Votos', 'Porcentaje'],
-      ...results.results.map(result => [
-        result.text,
-        result.votes.toString(),
-        `${result.percentage.toFixed(2)}%`
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `resultados-${results.election.title.replace(/\s+/g, '-').toLowerCase()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -122,13 +100,38 @@ export default function ElectionResults() {
               <p className="mt-1 text-gray-600">{results.election.description}</p>
             </div>
           </div>
-          <button
-            onClick={exportResults}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-          >
-            <Download className="-ml-0.5 mr-2 h-4 w-4" />
-            Exportar CSV
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                exportToPDF(results);
+                toast.success('PDF generado exitosamente');
+              }}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+            >
+              <FileText className="-ml-0.5 mr-2 h-4 w-4" />
+              Exportar PDF
+            </button>
+            <button
+              onClick={() => {
+                exportToExcel(results);
+                toast.success('Excel generado exitosamente');
+              }}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+            >
+              <FileSpreadsheet className="-ml-0.5 mr-2 h-4 w-4" />
+              Exportar Excel
+            </button>
+            <button
+              onClick={() => {
+                exportToCSV(results);
+                toast.success('CSV generado exitosamente');
+              }}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              <Download className="-ml-0.5 mr-2 h-4 w-4" />
+              Exportar CSV
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
