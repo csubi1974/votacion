@@ -22,7 +22,7 @@ interface ActivityLog {
 
 export default function UserProfile() {
     const navigate = useNavigate();
-    const { user, accessToken, updateUser } = useAuthStore();
+    const { user, accessToken, updateUser, logout } = useAuthStore();
     const [activeTab, setActiveTab] = useState<'info' | 'security' | 'activity'>('info');
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -279,9 +279,15 @@ export default function UserProfile() {
         const data = await response.json();
 
         if (response.ok) {
-            toast.success('2FA desactivado exitosamente');
-            updateUser({ twoFactorEnabled: false });
+            toast.success('2FA desactivado exitosamente. Cerrando sesión...');
             setShowDisable2FAModal(false);
+
+            // Wait a moment for the toast to be visible
+            setTimeout(async () => {
+                await logout();
+                navigate('/login');
+                toast.info('Por favor, inicia sesión nuevamente');
+            }, 1500);
         } else {
             toast.error(data.message || 'Error al desactivar 2FA');
             throw new Error(data.message);
@@ -314,8 +320,8 @@ export default function UserProfile() {
                             <button
                                 onClick={() => setActiveTab('info')}
                                 className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'info'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center justify-center">
@@ -326,8 +332,8 @@ export default function UserProfile() {
                             <button
                                 onClick={() => setActiveTab('security')}
                                 className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'security'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center justify-center">
@@ -338,8 +344,8 @@ export default function UserProfile() {
                             <button
                                 onClick={() => setActiveTab('activity')}
                                 className={`w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'activity'
-                                        ? 'border-blue-500 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center justify-center">
