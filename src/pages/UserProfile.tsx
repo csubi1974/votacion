@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { User, Mail, Shield, Key, Eye, EyeOff, Save, AlertCircle, CheckCircle, Clock, MapPin } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
+import Enable2FAModal from '@/components/Enable2FAModal';
+import Disable2FAModal from '@/components/Disable2FAModal';
 
 interface ProfileData {
     fullName: string;
@@ -38,6 +40,13 @@ export default function UserProfile() {
 
     const [passwordStrength, setPasswordStrength] = useState(0);
     const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+
+    // 2FA states
+    const [showEnable2FAModal, setShowEnable2FAModal] = useState(false);
+    const [showDisable2FAModal, setShowDisable2FAModal] = useState(false);
+    const [qrCodeUrl, setQrCodeUrl] = useState('');
+    const [twoFactorSecret, setTwoFactorSecret] = useState('');
+    const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
     useEffect(() => {
         if (user) {
@@ -219,6 +228,90 @@ export default function UserProfile() {
             confirmPassword: '',
         });
         setIsEditing(false);
+    };
+
+    // 2FA Handlers
+    const handleEnable2FA = async () => {
+        try {
+            const csrfResponse = await fetch('/api/csrf-token');
+            const csrfData = await csrfResponse.json();
+
+            const response = await fetch('/api/auth/2fa/setup', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'X-CSRF-Token': csrfData.csrfToken,
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setQrCodeUrl(data.data.qrCode);
+                setTwoFactorSecret(data.data.secret);
+                setShowEnable2FAModal(true);
+            } else {
+                toast.error(data.message || 'Error al configurar 2FA');
+            }
+        } catch (error) {
+            console.error('Enable 2FA error:', error);
+            toast.error('Error al configurar 2FA');
+        }
+    };
+
+    const handleConfirmEnable2FA = async (code: string) => {
+        const csrfResponse = await fetch('/api/csrf-token');
+        const csrfData = await csrfResponse.json();
+
+        const response = await fetch('/api/auth/2fa/enable', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+                'X-CSRF-Token': csrfData.csrfToken,
+            },
+            body: JSON.stringify({ code }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            toast.success('2FA activado exitosamente');
+            setRecoveryCodes(data.data.recoveryCodes);
+            updateUser({ twoFactorEnabled: true });
+        } else {
+            toast.error(data.message || 'Código inválido');
+            throw new Error(data.message);
+        }
+    };
+
+    const handleDisable2FA = () => {
+        setShowDisable2FAModal(true);
+    };
+
+    const handleConfirmDisable2FA = async (code: string, password: string) => {
+        const csrfResponse = await fetch('/api/csrf-token');
+        const csrfData = await csrfResponse.json();
+
+        const response = await fetch('/api/auth/2fa/disable', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+                'X-CSRF-Token': csrfData.csrfToken,
+            },
+            body: JSON.stringify({ code, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            toast.success('2FA desactivado exitosamente');
+            updateUser({ twoFactorEnabled: false });
+        } else {
+            toast.error(data.message || 'Error al desactivar 2FA');
+            throw new Error(data.message);
+        }
     };
 
     if (!user) {
@@ -565,70 +658,49 @@ export default function UserProfile() {
                                             )}
                                         </div>
                                     </div>
+                        )}
 
-                                    {!user.twoFactorEnabled ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => {/* TODO: Implement enable 2FA */ }}
-                                            className="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                                        >
-                                            <Shield className="w-4 h-4 mr-2" />
-                                            Activar 2FA
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => {/* TODO: Implement disable 2FA */ }}
-                                            className="w-full inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                                        >
-                                            Desactivar 2FA
-                                        </button>
+                                    {/* Activity Tab */}
+                                    {activeTab === 'activity' && (
+                                        <div className="space-y-4">
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">Actividad Reciente</h3>
+
+                                            {activityLogs.length === 0 ? (
+                                                <div className="text-center py-12">
+                                                    <Clock className="mx-auto h-12 w-12 text-gray-400" />
+                                                    <h3 className="mt-2 text-sm font-medium text-gray-900">No hay actividad reciente</h3>
+                                                    <p className="mt-1 text-sm text-gray-500">
+                                                        Tus acciones aparecerán aquí.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {activityLogs.map((log) => (
+                                                        <div key={log.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                                            <div className="flex items-start justify-between">
+                                                                <div className="flex-1">
+                                                                    <p className="text-sm font-medium text-gray-900">{log.action}</p>
+                                                                    <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
+                                                                        <span className="flex items-center">
+                                                                            <Clock className="w-3 h-3 mr-1" />
+                                                                            {new Date(log.createdAt).toLocaleString('es-CL')}
+                                                                        </span>
+                                                                        <span className="flex items-center">
+                                                                            <MapPin className="w-3 h-3 mr-1" />
+                                                                            {log.ipAddress}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>
-                        )}
-
-                        {/* Activity Tab */}
-                        {activeTab === 'activity' && (
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Actividad Reciente</h3>
-
-                                {activityLogs.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <Clock className="mx-auto h-12 w-12 text-gray-400" />
-                                        <h3 className="mt-2 text-sm font-medium text-gray-900">No hay actividad reciente</h3>
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            Tus acciones aparecerán aquí.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {activityLogs.map((log) => (
-                                            <div key={log.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                                                        <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-                                                            <span className="flex items-center">
-                                                                <Clock className="w-3 h-3 mr-1" />
-                                                                {new Date(log.createdAt).toLocaleString('es-CL')}
-                                                            </span>
-                                                            <span className="flex items-center">
-                                                                <MapPin className="w-3 h-3 mr-1" />
-                                                                {log.ipAddress}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
-        </div>
-    );
+                </div>
+                );
 }

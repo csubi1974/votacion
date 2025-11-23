@@ -14,13 +14,14 @@ export interface UserAttributes {
   emailVerified: boolean;
   twoFactorEnabled: boolean;
   twoFactorSecret?: string | null;
+  twoFactorRecoveryCodes?: string | null;
   failedLoginAttempts: number;
   lockedUntil?: Date | null;
 }
 
 export type UserCreationAttributes = Omit<UserAttributes, 'id' | 'emailVerified' | 'twoFactorEnabled' | 'failedLoginAttempts'>;
 
-export class User extends Model<UserAttributes, UserCreationAttributes> 
+export class User extends Model<UserAttributes, UserCreationAttributes>
   implements UserAttributes {
   declare id: string;
   declare rut: string;
@@ -32,6 +33,7 @@ export class User extends Model<UserAttributes, UserCreationAttributes>
   declare emailVerified: boolean;
   declare twoFactorEnabled: boolean;
   declare twoFactorSecret: string | null | undefined;
+  declare twoFactorRecoveryCodes: string | null | undefined;
   declare failedLoginAttempts: number;
   declare lockedUntil: Date | null | undefined;
   declare readonly createdAt: Date;
@@ -113,6 +115,10 @@ User.init({
   },
   twoFactorSecret: {
     type: DataTypes.STRING,
+    allowNull: true,
+  },
+  twoFactorRecoveryCodes: {
+    type: DataTypes.TEXT,
     allowNull: true,
   },
   failedLoginAttempts: {

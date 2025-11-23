@@ -694,4 +694,368 @@ router.post('/reset-password', [
   }
 });
 
+/**
+ * @route   POST /api/auth/2fa/setup
+ * @desc    Generate 2FA secret and QR code
+ * @access  Private
+ */
+router.post('/2fa/setup', authenticateToken, async (req, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const user = await User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: '2FA ya está activado',
+      });
+    }
+
+    const speakeasy = await import('speakeasy');
+    const secret = speakeasy.default.generateSecret({
+      name: `Voting Platform (${user.email})`,
+      length: 32,
+    });
+
+    // Guardar secreto temporalmente (no activar aún)
+    await user.update({ twoFactorSecret: secret.base32 });
+
+    res.json({
+      success: true,
+      data: {
+        secret: secret.base32,
+        qrCode: secret.otpauth_url,
+      },
+    });
+  } catch (error) {
+    console.error('2FA setup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al configurar 2FA',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/2fa/enable
+ * @desc    Verify code and enable 2FA
+ * @access  Private
+ */
+router.post('/2fa/enable', [
+  authenticateToken,
+  body('code')
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('El código debe tener 6 dígitos'),
+], async (req, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array(),
+      });
+    }
+
+    const userId = (req as any).user.id;
+    const { code } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: '2FA ya está activado',
+      });
+    }
+
+    if (!user.twoFactorSecret) {
+      return res.status(400).json({
+        success: false,
+        message: 'Primero debes configurar 2FA',
+      });
+    }
+
+    // Verificar código
+    const speakeasy = await import('speakeasy');
+    const verified = speakeasy.default.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: code,
+      window: 2,
+    });
+
+    if (!verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código inválido',
+      });
+    }
+
+    // Generar códigos de recuperación
+    const crypto = await import('crypto');
+    const recoveryCodes = Array.from({ length: 10 }, () =>
+      crypto.randomBytes(4).toString('hex').toUpperCase()
+    );
+
+    // Hashear códigos de recuperación
+    const { hashPassword } = await import('../utils/security.js');
+    const hashedCodes = await Promise.all(
+      recoveryCodes.map(code => hashPassword(code))
+    );
+
+    // Activar 2FA
+    await user.update({
+      twoFactorEnabled: true,
+      twoFactorRecoveryCodes: JSON.stringify(hashedCodes),
+    });
+
+    // Log audit
+    const { AuditService } = await import('../services/AuditService.js');
+    const auditService = new AuditService();
+    await auditService.logActivity({
+      userId: user.id,
+      action: '2FA_ENABLED',
+      resourceType: 'User',
+      resourceId: user.id,
+      oldValues: null,
+      newValues: null,
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      success: true,
+      message: '2FA activado exitosamente',
+      data: {
+        recoveryCodes, // Solo se muestran una vez
+      },
+    });
+  } catch (error) {
+    console.error('2FA enable error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al activar 2FA',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/2fa/disable
+ * @desc    Disable 2FA
+ * @access  Private
+ */
+router.post('/2fa/disable', [
+  authenticateToken,
+  body('code')
+    .optional()
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('El código debe tener 6 dígitos'),
+  body('password')
+    .optional()
+    .notEmpty()
+    .withMessage('Password is required'),
+], async (req, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array(),
+      });
+    }
+
+    const userId = (req as any).user.id;
+    const { code, password } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: '2FA no está activado',
+      });
+    }
+
+    let verified = false;
+
+    // Verificar código 2FA si se proporciona
+    if (code && user.twoFactorSecret) {
+      const speakeasy = await import('speakeasy');
+      verified = speakeasy.default.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: 'base32',
+        token: code,
+        window: 2,
+      });
+    }
+
+    // Si no se verificó con código, verificar con contraseña
+    if (!verified && password) {
+      const { comparePassword } = await import('../utils/security.js');
+      verified = await comparePassword(password, user.passwordHash);
+    }
+
+    if (!verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código o contraseña inválidos',
+      });
+    }
+
+    // Desactivar 2FA
+    await user.update({
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
+      twoFactorRecoveryCodes: null,
+    });
+
+    // Log audit
+    const { AuditService } = await import('../services/AuditService.js');
+    const auditService = new AuditService();
+    await auditService.logActivity({
+      userId: user.id,
+      action: '2FA_DISABLED',
+      resourceType: 'User',
+      resourceId: user.id,
+      oldValues: null,
+      newValues: null,
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      success: true,
+      message: '2FA desactivado exitosamente',
+    });
+  } catch (error) {
+    console.error('2FA disable error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al desactivar 2FA',
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/2fa/regenerate-codes
+ * @desc    Regenerate recovery codes
+ * @access  Private
+ */
+router.post('/2fa/regenerate-codes', [
+  authenticateToken,
+  body('code')
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('El código debe tener 6 dígitos'),
+], async (req, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation errors',
+        errors: errors.array(),
+      });
+    }
+
+    const userId = (req as any).user.id;
+    const { code } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado',
+      });
+    }
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: '2FA no está activado',
+      });
+    }
+
+    // Verificar código
+    const speakeasy = await import('speakeasy');
+    const verified = speakeasy.default.totp.verify({
+      secret: user.twoFactorSecret!,
+      encoding: 'base32',
+      token: code,
+      window: 2,
+    });
+
+    if (!verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código inválido',
+      });
+    }
+
+    // Generar nuevos códigos de recuperación
+    const crypto = await import('crypto');
+    const recoveryCodes = Array.from({ length: 10 }, () =>
+      crypto.randomBytes(4).toString('hex').toUpperCase()
+    );
+
+    // Hashear códigos
+    const { hashPassword } = await import('../utils/security.js');
+    const hashedCodes = await Promise.all(
+      recoveryCodes.map(code => hashPassword(code))
+    );
+
+    await user.update({
+      twoFactorRecoveryCodes: JSON.stringify(hashedCodes),
+    });
+
+    // Log audit
+    const { AuditService } = await import('../services/AuditService.js');
+    const auditService = new AuditService();
+    await auditService.logActivity({
+      userId: user.id,
+      action: '2FA_RECOVERY_CODES_REGENERATED',
+      resourceType: 'User',
+      resourceId: user.id,
+      oldValues: null,
+      newValues: null,
+      ipAddress: req.ip || '',
+    });
+
+    res.json({
+      success: true,
+      message: 'Códigos de recuperación regenerados',
+      data: {
+        recoveryCodes,
+      },
+    });
+  } catch (error) {
+    console.error('2FA regenerate codes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al regenerar códigos',
+    });
+  }
+});
+
 export default router;
