@@ -22,7 +22,7 @@ export interface RegisterData {
 export interface AuthResponse {
   success: boolean;
   message: string;
-  user?: { id: string; rut?: string; email: string; fullName: string; role?: string; organizationId?: string; emailVerified?: boolean };
+  user?: { id: string; rut?: string; email: string; fullName: string; role?: string; organizationId?: string; emailVerified?: boolean; twoFactorEnabled?: boolean };
   tokens?: { accessToken: string; refreshToken: string };
   requires2FA?: boolean;
 }
@@ -53,23 +53,23 @@ export class AuthService {
     if (password.length < 8) {
       return { valid: false, message: 'Password must be at least 8 characters long' };
     }
-    
+
     if (!/[A-Z]/.test(password)) {
       return { valid: false, message: 'Password must contain at least one uppercase letter' };
     }
-    
+
     if (!/[a-z]/.test(password)) {
       return { valid: false, message: 'Password must contain at least one lowercase letter' };
     }
-    
+
     if (!/\d/.test(password)) {
       return { valid: false, message: 'Password must contain at least one number' };
     }
-    
+
     if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
       return { valid: false, message: 'Password must contain at least one special character' };
     }
-    
+
     return { valid: true, message: 'Password is valid' };
   }
 
@@ -166,7 +166,7 @@ export class AuthService {
   async login(data: LoginData): Promise<AuthResponse> {
     try {
       let user: User | null = null;
-      
+
       // In development, allow login by email for testing convenience
       if (data.email && process.env.NODE_ENV === 'development') {
         user = await User.findOne({ where: { email: data.email } });
@@ -202,7 +202,7 @@ export class AuthService {
         // Increment failed login attempts
         user.incrementFailedAttempts();
         await user.save();
-        
+
         return {
           success: false,
           message: 'Invalid credentials',
@@ -248,6 +248,7 @@ export class AuthService {
           fullName: user.fullName,
           role: user.role,
           organizationId: user.organizationId,
+          twoFactorEnabled: user.twoFactorEnabled,
         },
         tokens,
       };
@@ -308,6 +309,7 @@ export class AuthService {
           fullName: user.fullName,
           role: user.role,
           organizationId: user.organizationId,
+          twoFactorEnabled: user.twoFactorEnabled,
         },
         tokens,
       };
