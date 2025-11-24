@@ -1,16 +1,4 @@
-import express, { Request, Response } from 'express';
-import { body, validationResult } from 'express-validator';
-import { User, Organization, Election, ElectionOption, Vote } from '../models/index.js';
-import { authenticateToken, requireRole } from '../middleware/auth.js';
-import { Op } from 'sequelize';
-
-const router = express.Router();
-
-// Validation middleware
-const validateElection = [
-  body('title').isString().isLength({ min: 3, max: 200 }).withMessage('Title must be 3-200 characters'),
-  body('description').isString().isLength({ min: 10, max: 1000 }).withMessage('Description must be 10-1000 characters'),
-  body('startDate').isISO8601().withMessage('Start date must be valid ISO date'),
+body('startDate').isISO8601().withMessage('Start date must be valid ISO date'),
   body('endDate').isISO8601().withMessage('End date must be valid ISO date'),
   body('category').isIn(['board_members', 'policy', 'budget', 'leadership', 'other']).withMessage('Invalid category'),
   body('maxVotesPerUser').isInt({ min: 1, max: 10 }).withMessage('Max votes must be between 1-10'),
@@ -265,123 +253,60 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       email,
       passwordHash: hashedPassword,
       fullName,
-      role,
-      organizationId,
-      emailVerified: false
-    });
+      const userRole = req.user.role;
 
-    // In a real app, send email with temp password
-    console.log(`Created user ${email} with temp password: ${tempPassword}`);
-
-    res.json({
-      success: true,
-      message: 'User created successfully',
-      data: {
-        id: user.id,
-        rut: user.rut,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('User creation error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create user'
-    });
+      const whereClause: any = { id };
+      if(userRole !== 'super_admin') {
+        whereClause.organizationId = organizationId;
   }
-});
-
-router.put('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { fullName, role, emailVerified } = req.body;
-    const organizationId = req.user.organizationId;
-    const userRole = req.user.role;
-
-    const whereClause: any = { id };
-    if (userRole !== 'super_admin') {
-      whereClause.organizationId = organizationId;
-    }
 
     const user = await User.findOne({ where: whereClause });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    await user.update({
-      fullName,
-      role,
-      emailVerified
-    });
-
-    res.json({
-      success: true,
-      message: 'User updated successfully',
-      data: {
-        id: user.id,
-        rut: user.rut,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        emailVerified: user.emailVerified
-      }
-    });
-  } catch (error) {
-    console.error('User update error:', error);
-    res.status(500).json({
+  if (!user) {
+    return res.status(404).json({
       success: false,
-      message: 'Failed to update user'
+      message: 'User not found'
     });
   }
-});
 
-router.delete('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const organizationId = req.user.organizationId;
-    const userRole = req.user.role;
-
-    const whereClause: any = { id };
-    if (userRole !== 'super_admin') {
-      whereClause.organizationId = organizationId;
-    }
-
-    const user = await User.findOne({ where: whereClause });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Prevent deleting yourself
-    if (user.id === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete your own account'
-      });
-    }
-
-    await user.destroy();
-
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    console.error('User deletion error:', error);
-    res.status(500).json({
+  // Prevent deleting yourself
+  if (user.id === req.user.id) {
+    return res.status(400).json({
       success: false,
-      message: 'Failed to delete user'
+      message: 'Cannot delete your own account'
     });
   }
+
+  await user.destroy();
+
+  // Log audit event
+  await auditService.logActivity({
+    userId: req.user.id,
+    action: 'USER_DELETED',
+    resourceType: 'user',
+    resourceId: user.id,
+    oldValues: {
+      rut: user.rut,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      organizationId: user.organizationId
+    },
+    newValues: null,
+    ipAddress: req.ip || '0.0.0.0',
+  });
+
+  res.json({
+    success: true,
+    message: 'User deleted successfully'
+  });
+} catch (error) {
+  console.error('User deletion error:', error);
+  res.status(500).json({
+    success: false,
+    message: 'Failed to delete user'
+  });
+}
 });
 
 // Election management routes

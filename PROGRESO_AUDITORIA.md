@@ -6,44 +6,30 @@
 - ✅ `LOGIN_SUCCESS` - Implementado en AuthService.ts
 - ✅ `LOGIN_FAILED` - Implementado (usuario no encontrado + contraseña inválida)
 - ✅ `ACCOUNT_LOCKED` - Implementado cuando cuenta está bloqueada
-- ⏳ `LOGOUT` - Pendiente (necesita implementarse en routes/auth.ts)
+- ✅ `LOGOUT` - Implementado en routes/auth.ts
 
-**Archivos modificados:**
-- `api/services/AuthService.ts` - Agregado constructor con AuditService
-- `api/services/AuthService.ts` - Método login() ahora registra auditoría
+### 2. Votación (CRÍTICO)
+- ✅ `VOTE_CAST` - Implementado en VotingService.ts
+- ✅ `VOTE_FAILED` - Implementado en VotingService.ts
+- ✅ `VOTE_ATTEMPT` - Implementado en VotingService.ts
 
-**Próximo paso:** Actualizar `api/routes/auth.ts` para pasar `ipAddress` al método login()
+### 3. Gestión de Usuarios (IMPORTANTE)
+- ✅ `USER_CREATED` - Implementado en routes/admin.ts
+- ✅ `USER_UPDATED` - Implementado en routes/admin.ts
+- ✅ `USER_DELETED` - Implementado en routes/admin.ts
+- ✅ `ROLE_CHANGED` - Implementado en routes/admin.ts
 
 ---
 
 ## ⏳ EN PROGRESO
 
-### 2. Verificación 2FA
+### 4. Verificación 2FA
 - ⏳ `2FA_VERIFICATION_SUCCESS` - Por implementar
 - ⏳ `2FA_VERIFICATION_FAILED` - Por implementar
 
-### 3. Cambio de Contraseña
+### 5. Cambio de Contraseña
 - ⏳ `PASSWORD_CHANGED` - Por implementar
 - ⏳ `PASSWORD_RESET_REQUESTED` - Por implementar
-
----
-
-## 📋 PENDIENTE (Prioridad Alta)
-
-### 4. Votación (CRÍTICO)
-- ❌ `VOTE_CAST` - Implementar en VotingService.ts
-- ❌ `VOTE_FAILED` - Implementar en VotingService.ts
-- ❌ `VOTE_ATTEMPT` - Implementar en VotingService.ts
-
-**Ubicación:** `api/services/VotingService.ts`
-
-### 5. Gestión de Usuarios (IMPORTANTE)
-- ❌ `USER_CREATED` - Implementar en routes/admin.ts
-- ❌ `USER_UPDATED` - Implementar en routes/admin.ts
-- ❌ `USER_DELETED` - Implementar en routes/admin.ts
-- ❌ `ROLE_CHANGED` - Implementar en routes/admin.ts
-
-**Ubicación:** `api/routes/admin.ts`
 
 ---
 

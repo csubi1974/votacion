@@ -2,6 +2,7 @@ import { Vote } from '../models/Vote.js';
 import { Election } from '../models/Election.js';
 import { ElectionOption } from '../models/ElectionOption.js';
 import { Op } from 'sequelize';
+import { AuditService } from './AuditService.js';
 
 export interface VoteData {
   electionId: string;
@@ -13,6 +14,11 @@ export interface VoteData {
 }
 
 export class VotingService {
+  private auditService: AuditService;
+
+  constructor() {
+    this.auditService = new AuditService();
+  }
 
   async getAvailableElections(userId: string, organizationId: string): Promise<Election[]> {
     const now = new Date();
@@ -149,8 +155,33 @@ export class VotingService {
   }
 
   async castVote(data: VoteData): Promise<Vote[]> {
+    // Log vote attempt
+    await this.auditService.logActivity({
+      userId: data.userId,
+      action: 'VOTE_ATTEMPT',
+      resourceType: 'election',
+      resourceId: data.electionId,
+      oldValues: null,
+      newValues: { optionIds: data.optionIds },
+      ipAddress: data.ipAddress,
+    });
+
     const validation = await this.validateVote(data);
     if (!validation.valid) {
+      // Log failed vote
+      await this.auditService.logActivity({
+        userId: data.userId,
+        action: 'VOTE_FAILED',
+        resourceType: 'election',
+        resourceId: data.electionId,
+        oldValues: null,
+        newValues: {
+          reason: validation.errors.join(', '),
+          optionIds: data.optionIds
+        },
+        ipAddress: data.ipAddress,
+      });
+
       throw new Error(validation.errors.join(', '));
     }
 
@@ -180,6 +211,21 @@ export class VotingService {
       const VoterRegistryService = (await import('./VoterRegistryService.js')).default;
       await VoterRegistryService.markAsVoted(data.electionId, data.userId);
     }
+
+    // Log successful vote
+    await this.auditService.logActivity({
+      userId: data.userId,
+      action: 'VOTE_CAST',
+      resourceType: 'election',
+      resourceId: data.electionId,
+      oldValues: null,
+      newValues: {
+        optionIds: data.optionIds,
+        voteCount: votes.length,
+        verificationHashes: votes.map(v => v.verificationHash)
+      },
+      ipAddress: data.ipAddress,
+    });
 
     return votes;
   }
