@@ -1,6 +1,7 @@
 import { Election, ElectionStatus, ElectionCategory, ElectionAttributes } from '../models/Election.js';
 import { ElectionOption } from '../models/ElectionOption.js';
 import { User } from '../models/User.js';
+import { Organization } from '../models/Organization.js';
 import { AuditService } from './AuditService.js';
 import { AppError } from '../utils/AppError.js';
 
@@ -12,6 +13,7 @@ export interface ElectionData {
   category: ElectionCategory;
   maxVotesPerUser?: number;
   isPublic?: boolean;
+  requiresVoterRegistry?: boolean;
   options: Array<{
     title: string;
     description?: string;
@@ -72,6 +74,7 @@ export class ElectionService {
         category: data.category,
         maxVotesPerUser: data.maxVotesPerUser || 1,
         isPublic: data.isPublic || false,
+        requiresVoterRegistry: data.requiresVoterRegistry || false,
       }, { transaction });
 
       // Crear opciones
@@ -126,13 +129,24 @@ export class ElectionService {
       startDateTo?: Date;
     }
   ): Promise<ElectionWithOptions[]> {
-    // Verificar acceso del usuario a la organización
+    // Verificar acceso del usuario
     const user = await User.findByPk(userId);
-    if (!user || user.organizationId !== organizationId) {
-      throw new AppError('No tiene acceso a esta organización', 403);
+    if (!user) {
+      throw new AppError('Usuario no encontrado', 404);
     }
 
-    const where: Record<string, unknown> = { organizationId };
+    // Construir el where clause
+    const where: Record<string, unknown> = {};
+
+    // Si el usuario es super_admin, puede ver todas las elecciones
+    // Si no, solo puede ver las de su organización
+    if (user.role !== 'super_admin') {
+      if (user.organizationId !== organizationId) {
+        throw new AppError('No tiene acceso a esta organización', 403);
+      }
+      where.organizationId = organizationId;
+    }
+    // Si es super_admin, no filtramos por organizationId (ve todas)
 
     if (filters?.status) {
       where.status = filters.status;
@@ -156,6 +170,11 @@ export class ElectionService {
       where,
       include: [
         {
+          model: Organization,
+          as: 'organization',
+          attributes: ['id', 'name', 'rut'],
+        },
+        {
           model: ElectionOption,
           as: 'options',
           order: [['orderIndex', 'ASC']],
@@ -174,12 +193,24 @@ export class ElectionService {
   ): Promise<ElectionWithOptions> {
     // Verificar acceso del usuario
     const user = await User.findByPk(userId);
-    if (!user || user.organizationId !== organizationId) {
-      throw new AppError('No tiene acceso a esta organización', 403);
+    if (!user) {
+      throw new AppError('Usuario no encontrado', 404);
     }
 
+    // Construir el where clause
+    const where: Record<string, unknown> = { id: electionId };
+
+    // Si el usuario NO es super_admin, debe estar en la misma organización
+    if (user.role !== 'super_admin') {
+      if (user.organizationId !== organizationId) {
+        throw new AppError('No tiene acceso a esta organización', 403);
+      }
+      where.organizationId = organizationId;
+    }
+    // Si es super_admin, puede acceder a cualquier elección
+
     const election = await Election.findOne({
-      where: { id: electionId, organizationId },
+      where,
       include: [
         {
           model: ElectionOption,
@@ -208,8 +239,19 @@ export class ElectionService {
       throw new AppError('No tiene permisos para actualizar elecciones', 403);
     }
 
+    // Construir el where clause
+    const where: Record<string, unknown> = { id: electionId };
+
+    // Si el usuario NO es super_admin, debe estar en la misma organización
+    if (user.role !== 'super_admin') {
+      if (user.organizationId !== organizationId) {
+        throw new AppError('No tiene acceso a esta organización', 403);
+      }
+      where.organizationId = organizationId;
+    }
+
     const election = await Election.findOne({
-      where: { id: electionId, organizationId },
+      where,
       include: ['options'],
     });
 
@@ -242,6 +284,7 @@ export class ElectionService {
       if (data.category) updateData.category = data.category;
       if (data.maxVotesPerUser) updateData.maxVotesPerUser = data.maxVotesPerUser;
       if (data.isPublic !== undefined) updateData.isPublic = data.isPublic;
+      if (data.requiresVoterRegistry !== undefined) updateData.requiresVoterRegistry = data.requiresVoterRegistry;
       if (data.status) updateData.status = data.status;
 
       await election.update(updateData, { transaction });
@@ -313,8 +356,19 @@ export class ElectionService {
       throw new AppError('No tiene permisos para eliminar elecciones', 403);
     }
 
+    // Construir el where clause
+    const where: Record<string, unknown> = { id: electionId };
+
+    // Si el usuario NO es super_admin, debe estar en la misma organización
+    if (user.role !== 'super_admin') {
+      if (user.organizationId !== organizationId) {
+        throw new AppError('No tiene acceso a esta organización', 403);
+      }
+      where.organizationId = organizationId;
+    }
+
     const election = await Election.findOne({
-      where: { id: electionId, organizationId },
+      where,
     });
 
     if (!election) {

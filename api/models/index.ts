@@ -5,6 +5,7 @@ import ElectionOption from './ElectionOption.js';
 import Vote from './Vote.js';
 import AuditLog from './AuditLog.js';
 import PasswordResetToken from './PasswordResetToken.js';
+import ElectionVoter from './ElectionVoter.js';
 
 // Define associations
 Organization.hasMany(User, {
@@ -92,7 +93,36 @@ User.hasMany(PasswordResetToken, {
 
 PasswordResetToken.belongsTo(User, {
   foreignKey: 'userId',
+  as: 'resetToken',
+});
+
+// ElectionVoter associations (Padrón Electoral)
+Election.hasMany(ElectionVoter, {
+  foreignKey: 'electionId',
+  as: 'voters',
+  onDelete: 'CASCADE',
+});
+
+ElectionVoter.belongsTo(Election, {
+  foreignKey: 'electionId',
+  as: 'election',
+});
+
+User.hasMany(ElectionVoter, {
+  foreignKey: 'userId',
+  as: 'electionRegistrations',
+  onDelete: 'CASCADE',
+});
+
+ElectionVoter.belongsTo(User, {
+  foreignKey: 'userId',
   as: 'user',
+});
+
+// Admin who added the voter to the registry
+ElectionVoter.belongsTo(User, {
+  foreignKey: 'addedBy',
+  as: 'addedByUser',
 });
 
 export {
@@ -103,6 +133,7 @@ export {
   Vote,
   AuditLog,
   PasswordResetToken,
+  ElectionVoter,
 };
 
 export default {
@@ -113,4 +144,5 @@ export default {
   Vote,
   AuditLog,
   PasswordResetToken,
+  ElectionVoter,
 };

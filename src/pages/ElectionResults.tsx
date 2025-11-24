@@ -29,7 +29,7 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'
 
 export default function ElectionResults() {
   const { id } = useParams<{ id: string }>();
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
   const [results, setResults] = useState<ElectionResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -37,7 +37,13 @@ export default function ElectionResults() {
   const fetchResults = async () => {
     if (!id) return;
     try {
-      const response = await fetch(`/api/voting/elections/${id}/results`, {
+      // Usar endpoint de admin para admin y super_admin, endpoint de voting para voters
+      const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+      const endpoint = isAdmin
+        ? `/api/admin/elections/${id}/results`
+        : `/api/voting/elections/${id}/results`;
+
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
         },
@@ -60,7 +66,7 @@ export default function ElectionResults() {
   // Initial fetch
   useEffect(() => {
     fetchResults();
-  }, [id, accessToken]);
+  }, [id, accessToken, user?.role]);
 
   // Socket connection
   useEffect(() => {

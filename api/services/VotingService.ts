@@ -107,6 +107,17 @@ export class VotingService {
       return { valid: false, errors };
     }
 
+    // Check if election requires voter registry (padrón)
+    if (election.requiresVoterRegistry) {
+      const VoterRegistryService = (await import('./VoterRegistryService.js')).default;
+      const isInRegistry = await VoterRegistryService.isUserInRegistry(data.electionId, data.userId);
+
+      if (!isInRegistry) {
+        errors.push('No estás habilitado para votar en esta elección (no estás en el padrón electoral)');
+        return { valid: false, errors };
+      }
+    }
+
     // Check if user has already voted
     const hasVoted = await this.hasUserVoted(data.electionId, data.userId);
     if (hasVoted) {
@@ -162,6 +173,13 @@ export class VotingService {
         });
       })
     );
+
+    // Mark as voted in registry if election requires it
+    const election = await Election.findByPk(data.electionId);
+    if (election?.requiresVoterRegistry) {
+      const VoterRegistryService = (await import('./VoterRegistryService.js')).default;
+      await VoterRegistryService.markAsVoted(data.electionId, data.userId);
+    }
 
     return votes;
   }

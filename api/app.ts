@@ -19,6 +19,7 @@ import electionRoutes from './routes/elections.js'
 import bulkImportRoutes from './routes/bulkImport.js'
 import adminStatsRoutes from './routes/adminStats.js'
 import uploadRoutes from './routes/upload.js'
+import organizationRoutes from './routes/organizations.js'
 import { connectDatabase } from './config/database.js'
 import './models/index.js'
 import {
@@ -98,6 +99,7 @@ app.use('/api/audit', authLimiter, auditRoutes)
 app.use('/api/bulk-import', authLimiter, bulkImportRoutes)
 app.use('/api/admin/stats', authLimiter, adminStatsRoutes)
 app.use('/api/upload', authLimiter, uploadRoutes)
+app.use('/api/organizations', authLimiter, organizationRoutes)
 
 /**
  * health

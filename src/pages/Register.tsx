@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2, CheckCircle, ArrowLeft, Vote, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import useAuthStore from '../stores/authStore';
 
@@ -76,36 +76,8 @@ const Register: React.FC = () => {
     }));
   };
 
-  const validateRut = (rut: string): boolean => {
-    const cleanRut = rut.replace(/[^0-9kK]/g, '').toUpperCase();
-    if (cleanRut.length < 2) return false;
-
-    const body = cleanRut.slice(0, -1);
-    const verifier = cleanRut.slice(-1);
-
-    if (!/^\d+$/.test(body)) return false;
-
-    let sum = 0;
-    let multiplier = 2;
-
-    for (let i = body.length - 1; i >= 0; i--) {
-      sum += parseInt(body[i]) * multiplier;
-      multiplier = multiplier === 7 ? 2 : multiplier + 1;
-    }
-
-    const remainder = 11 - (sum % 11);
-    const expectedVerifier = remainder === 11 ? '0' : remainder === 10 ? 'K' : remainder.toString();
-
-    return verifier === expectedVerifier;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateRut(formData.rut)) {
-      toast.error('RUT inválido');
-      return;
-    }
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Las contraseñas no coinciden');
@@ -113,92 +85,98 @@ const Register: React.FC = () => {
     }
 
     if (passwordErrors.length > 0) {
-      toast.error('La contraseña no cumple con los requisitos');
+      toast.error('La contraseña no cumple con los requisitos mínimos');
       return;
     }
 
     try {
-      const registerData: any = {
-        rut: formData.rut,
-        email: formData.email,
-        password: formData.password,
-        fullName: formData.fullName,
-      };
+      const dataToSubmit = formData.organizationId
+        ? formData
+        : { ...formData, organizationId: undefined };
 
-      // Solo incluir organizationId si tiene un valor
-      if (formData.organizationId && formData.organizationId.trim() !== '') {
-        registerData.organizationId = formData.organizationId.trim();
-      }
-
-      await register(registerData);
-
-      toast.success('Registro exitoso. Por favor verifica tu email para continuar.');
+      await register(dataToSubmit);
+      toast.success('Registro exitoso! Por favor verifica tu email.');
       navigate('/login');
     } catch (error) {
-      console.error('Registration error:', error);
-      toast.error(error instanceof Error ? error.message : 'Error en el registro');
+      toast.error(error instanceof Error ? error.message : 'Registration failed');
     }
   };
 
-  const getPasswordStrengthColor = () => {
-    switch (passwordStrength) {
-      case 1: return 'bg-red-500';
-      case 2: return 'bg-orange-500';
-      case 3: return 'bg-yellow-500';
-      case 4: return 'bg-green-500';
-      default: return 'bg-gray-300';
-    }
+  const getStrengthColor = () => {
+    if (passwordStrength === 0) return 'bg-gray-600';
+    if (passwordStrength === 1) return 'bg-red-500';
+    if (passwordStrength === 2) return 'bg-orange-500';
+    if (passwordStrength === 3) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  const getStrengthText = () => {
+    if (passwordStrength === 0) return '';
+    if (passwordStrength === 1) return 'Muy débil';
+    if (passwordStrength === 2) return 'Débil';
+    if (passwordStrength === 3) return 'Aceptable';
+    return 'Fuerte';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4 py-12">
+      <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent"></div>
+
+      <div className="max-w-2xl w-full relative">
+        <button
+          onClick={() => navigate('/')}
+          className="mb-4 text-gray-400 hover:text-white flex items-center transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver al inicio
+        </button>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
+            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/50">
+              <UserPlus className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Crear Cuenta</h2>
-            <p className="text-gray-600">Completa el formulario para registrarte</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Crear Cuenta</h2>
+            <p className="text-gray-400">Completa el formulario para registrarte</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="rut" className="block text-sm font-medium text-gray-700 mb-2">
-                RUT
-              </label>
-              <input
-                type="text"
-                id="rut"
-                name="rut"
-                value={formData.rut}
-                onChange={handleRutChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="12.345.678-9"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="fullName" className="block text-sm font-medium text-gray-300 mb-2">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  id="fullName"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                  placeholder="Juan Pérez"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="rut" className="block text-sm font-medium text-gray-300 mb-2">
+                  RUT
+                </label>
+                <input
+                  type="text"
+                  id="rut"
+                  name="rut"
+                  value={formData.rut}
+                  onChange={handleRutChange}
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                  placeholder="12.345.678-9"
+                  required
+                />
+              </div>
             </div>
 
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre Completo
-              </label>
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Juan Pérez González"
-                required
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
                 Email
               </label>
               <input
@@ -207,15 +185,15 @@ const Register: React.FC = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="juan.perez@ejemplo.com"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
+                placeholder="tu@email.com"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="organizationId" className="block text-sm font-medium text-gray-700 mb-2">
-                ID de Organización (Opcional)
+              <label htmlFor="organizationId" className="block text-sm font-medium text-gray-300 mb-2">
+                ID de Organización <span className="text-gray-500">(Opcional)</span>
               </label>
               <input
                 type="text"
@@ -223,16 +201,16 @@ const Register: React.FC = () => {
                 name="organizationId"
                 value={formData.organizationId}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
                 placeholder="Deja en blanco para usar organización por defecto"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Si tienes un ID de organización específico, ingrésalo aquí. De lo contrario, se te asignará a la organización por defecto.
+              <p className="mt-2 text-xs text-gray-500">
+                Si no tienes un ID de organización, se te asignará una por defecto
               </p>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Contraseña
               </label>
               <div className="relative">
@@ -242,46 +220,52 @@ const Register: React.FC = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pr-12 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
                   placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-300"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
 
               {formData.password && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-600">Fortaleza de contraseña</span>
-                    <span className="text-xs text-gray-500">
-                      {passwordStrength === 4 ? 'Fuerte' : passwordStrength === 3 ? 'Media' : passwordStrength === 2 ? 'Débil' : 'Muy débil'}
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-400">Fortaleza de la contraseña</span>
+                    <span className={`text-xs font-medium ${passwordStrength === 4 ? 'text-green-400' :
+                        passwordStrength === 3 ? 'text-yellow-400' :
+                          'text-red-400'
+                      }`}>
+                      {getStrengthText()}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
-                      style={{ width: `${(passwordStrength / 4) * 100}%` }}></div>
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4].map((level) => (
+                      <div
+                        key={level}
+                        className={`h-2 flex-1 rounded-full transition-colors ${level <= passwordStrength ? getStrengthColor() : 'bg-slate-700'
+                          }`}
+                      />
+                    ))}
                   </div>
                   {passwordErrors.length > 0 && (
-                    <div className="mt-2 text-xs text-red-600">
-                      <p className="font-medium mb-1">La contraseña debe contener:</p>
-                      <ul className="space-y-1">
-                        {passwordErrors.map((error, index) => (
-                          <li key={index} className="flex items-center">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            {error}
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="mt-3 space-y-1">
+                      <p className="text-xs text-gray-400">Requisitos faltantes:</p>
+                      {passwordErrors.map((error, index) => (
+                        <div key={index} className="flex items-center text-xs text-red-400">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {error}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -289,7 +273,7 @@ const Register: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
                 Confirmar Contraseña
               </label>
               <div className="relative">
@@ -299,34 +283,39 @@ const Register: React.FC = () => {
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pr-12 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
                   placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-300"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
-
+              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                <p className="mt-2 text-xs text-red-400 flex items-center">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Las contraseñas no coinciden
+                </p>
+              )}
               {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                <div className="mt-1 flex items-center text-green-600 text-sm">
-                  <CheckCircle className="w-4 h-4 mr-1" />
+                <p className="mt-2 text-xs text-green-400 flex items-center">
+                  <CheckCircle className="w-3 h-3 mr-1" />
                   Las contraseñas coinciden
-                </div>
+                </p>
               )}
             </div>
 
             {error && (
-              <div className="flex items-center text-red-600 text-sm">
-                <AlertCircle className="w-4 h-4 mr-2" />
+              <div className="flex items-center text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
                 {error}
               </div>
             )}
@@ -334,11 +323,11 @@ const Register: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || passwordErrors.length > 0 || formData.password !== formData.confirmPassword}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-xl hover:shadow-lg hover:shadow-purple-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Creando cuenta...
                 </div>
               ) : (
@@ -348,12 +337,12 @@ const Register: React.FC = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               ¿Ya tienes una cuenta?{' '}
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="text-blue-600 hover:text-blue-500 font-medium"
+                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
                 Inicia sesión aquí
               </button>

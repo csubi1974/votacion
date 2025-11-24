@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2, Vote, ArrowLeft, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import useAuthStore from '../stores/authStore';
 
@@ -82,30 +82,38 @@ const Login: React.FC = () => {
 
   if (requires2FA) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white rounded-lg shadow-xl p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4">
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent"></div>
+
+        <div className="max-w-md w-full relative">
+          <button
+            onClick={() => window.location.reload()}
+            className="mb-4 text-gray-400 hover:text-white flex items-center transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </button>
+
+          <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl p-8">
             <div className="text-center mb-8">
-              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">2FA</span>
-                </div>
+              <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/50">
+                <Shield className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Two-Factor Authentication</h2>
-              <p className="text-gray-600">Enter the 6-digit code from your authenticator app</p>
+              <h2 className="text-2xl font-bold text-white mb-2">Autenticación de Dos Factores</h2>
+              <p className="text-gray-400">Ingresa el código de 6 dígitos de tu aplicación autenticadora</p>
             </div>
 
             <form onSubmit={handle2FASubmit} className="space-y-6">
               <div>
-                <label htmlFor="twoFactorCode" className="block text-sm font-medium text-gray-700 mb-2">
-                  Authentication Code
+                <label htmlFor="twoFactorCode" className="block text-sm font-medium text-gray-300 mb-2">
+                  Código de Autenticación
                 </label>
                 <input
                   type="text"
                   id="twoFactorCode"
                   value={twoFactorCode}
                   onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest"
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest text-white placeholder-gray-500"
                   placeholder="000000"
                   maxLength={6}
                   pattern="[0-9]{6}"
@@ -114,8 +122,8 @@ const Login: React.FC = () => {
               </div>
 
               {error && (
-                <div className="flex items-center text-red-600 text-sm">
-                  <AlertCircle className="w-4 h-4 mr-2" />
+                <div className="flex items-center text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
                   {error}
                 </div>
               )}
@@ -123,15 +131,15 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading || twoFactorCode.length !== 6}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-xl hover:shadow-lg hover:shadow-purple-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Verifying...
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Verificando...
                   </div>
                 ) : (
-                  'Verify Code'
+                  'Verificar Código'
                 )}
               </button>
             </form>
@@ -142,22 +150,30 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-lg shadow-xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent"></div>
+
+      <div className="max-w-md w-full relative">
+        <button
+          onClick={() => navigate('/')}
+          className="mb-4 text-gray-400 hover:text-white flex items-center transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver al inicio
+        </button>
+
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-              </svg>
+            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/50">
+              <Vote className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Iniciar Sesión</h2>
-            <p className="text-gray-600">Ingresa con tu RUT y contraseña</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Iniciar Sesión</h2>
+            <p className="text-gray-400">Ingresa con tu RUT y contraseña</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="rut" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="rut" className="block text-sm font-medium text-gray-300 mb-2">
                 RUT
               </label>
               <input
@@ -166,14 +182,14 @@ const Login: React.FC = () => {
                 name="rut"
                 value={formData.rut}
                 onChange={handleRutChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
                 placeholder="12.345.678-9"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                 Contraseña
               </label>
               <div className="relative">
@@ -183,19 +199,19 @@ const Login: React.FC = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pr-12 bg-slate-900/50 border border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-500"
                   placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-300"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
@@ -204,15 +220,15 @@ const Login: React.FC = () => {
             <div className="flex items-center justify-end">
               <Link
                 to="/forgot-password"
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
 
             {error && (
-              <div className="flex items-center text-red-600 text-sm">
-                <AlertCircle className="w-4 h-4 mr-2" />
+              <div className="flex items-center text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
                 {error}
               </div>
             )}
@@ -220,11 +236,11 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading || !formData.rut || !formData.password}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-xl hover:shadow-lg hover:shadow-purple-500/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Iniciando sesión...
                 </div>
               ) : (
@@ -234,12 +250,12 @@ const Login: React.FC = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               ¿No tienes una cuenta?{' '}
               <button
                 type="button"
                 onClick={() => navigate('/register')}
-                className="text-blue-600 hover:text-blue-500 font-medium"
+                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
               >
                 Regístrate aquí
               </button>

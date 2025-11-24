@@ -33,7 +33,7 @@ router.get('/dashboard', authenticateToken, requireRole(['admin', 'super_admin']
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
-    const whereClause: Record<string, unknown> = {};
+    const whereClause: any = {};
     if (userRole !== 'super_admin') {
       whereClause.organizationId = organizationId;
     }
@@ -104,40 +104,61 @@ router.get('/dashboard', authenticateToken, requireRole(['admin', 'super_admin']
   }
 });
 
+// Get organizations list
+router.get('/organizations', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
+  try {
+    const userRole = req.user.role;
+    const organizationId = req.user.organizationId;
+
+    const whereClause: any = {};
+    if (userRole !== 'super_admin') {
+      whereClause.id = organizationId;
+    }
+
+    const organizations = await Organization.findAll({
+      where: whereClause,
+      attributes: ['id', 'name'],
+      order: [['name', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: organizations
+    });
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organizations'
+    });
+  }
+});
+
 // User management routes
 router.get('/users', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
   try {
-    const { page = '1', limit = '10', search = '', role = '' } = req.query as Record<string, string>;
+    const { page = '1', limit = '10', search = '' } = req.query as Record<string, string>;
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
-    const whereClause: Record<string, unknown> = {};
+    const whereClause: any = {};
     if (userRole !== 'super_admin') {
       whereClause.organizationId = organizationId;
     }
 
     if (search) {
       whereClause[Op.or] = [
-        { rut: { [Op.like]: `%${search}%` } },
+        { fullName: { [Op.like]: `%${search}%` } },
         { email: { [Op.like]: `%${search}%` } },
-        { fullName: { [Op.like]: `%${search}%` } }
+        { rut: { [Op.like]: `%${search}%` } }
       ];
-    }
-
-    if (role && ['voter', 'admin'].includes(role)) {
-      whereClause.role = role as 'voter' | 'admin';
     }
 
     const offset = (Number(page) - 1) * Number(limit);
 
     const { count, rows: users } = await User.findAndCountAll({
       where: whereClause,
-      attributes: ['id', 'rut', 'email', 'fullName', 'role', 'emailVerified', 'twoFactorEnabled', 'createdAt', 'updatedAt'],
-      include: [{
-        model: Organization,
-        as: 'organization',
-        attributes: ['id', 'name', 'rut']
-      }],
+      attributes: ['id', 'rut', 'email', 'fullName', 'role', 'emailVerified', 'createdAt'],
       order: [['createdAt', 'DESC']],
       limit: Number(limit),
       offset
@@ -164,6 +185,47 @@ router.get('/users', authenticateToken, requireRole(['admin', 'super_admin']), a
   }
 });
 
+router.get('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organizationId;
+    const userRole = req.user.role;
+
+    const whereClause: any = { id };
+    if (userRole !== 'super_admin') {
+      whereClause.organizationId = organizationId;
+    }
+
+    const user = await User.findOne({
+      where: whereClause,
+      attributes: ['id', 'rut', 'email', 'fullName', 'role', 'organizationId', 'emailVerified', 'twoFactorEnabled', 'createdAt'],
+      include: [{
+        model: Organization,
+        as: 'organization',
+        attributes: ['id', 'name', 'rut']
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load user'
+    });
+  }
+});
+
 router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), validateUser, async (req: AdminRequest, res: Response) => {
   try {
     const errors = validationResult(req);
@@ -175,67 +237,45 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       });
     }
 
-    const { rut, email, fullName, role, password, organizationId: requestedOrgId } = req.body;
-    const userRole = req.user.role;
-    const userOrgId = req.user.organizationId;
+    const { rut, email, fullName, role } = req.body;
+    const organizationId = req.user.organizationId;
 
-    // Permission check: Admins cannot create super_admins
-    if (userRole === 'admin' && role === 'super_admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Admins cannot create super administrators'
-      });
-    }
-
-    // Determine organization ID (super_admins can choose, admins use their own)
-    const organizationId = (userRole === 'super_admin' && requestedOrgId) ? requestedOrgId : userOrgId;
-
-    // Check if user already exists
+    // Check if user exists
     const existingUser = await User.findOne({
       where: {
-        [Op.or]: [{ rut }, { email }]
+        [Op.or]: [{ email }, { rut }],
+        organizationId
       }
     });
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User with this RUT or email already exists'
+        message: 'User with this email or RUT already exists'
       });
     }
 
-    // Use provided password or generate temporary one
-    let passwordToUse = password;
-    let temporaryPassword = null;
-
-    if (!passwordToUse) {
-      temporaryPassword = Math.random().toString(36).slice(-8) + 'Aa1!';
-      passwordToUse = temporaryPassword;
-    }
-
-    const { hashPassword } = await import('../utils/security.js');
-    const passwordHash = await hashPassword(passwordToUse);
+    // Generate temporary password
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const { hash } = await import('bcryptjs');
+    const hashedPassword = await hash(tempPassword, 10);
 
     const user = await User.create({
       rut,
       email,
+      passwordHash: hashedPassword,
       fullName,
       role,
       organizationId,
-      passwordHash,
-      emailVerified: true, // Auto-verify admin-created users
+      emailVerified: false
     });
 
-    // Log temporary password if generated
-    if (temporaryPassword) {
-      console.log(`Temporary password for ${email}: ${temporaryPassword}`);
-    }
+    // In a real app, send email with temp password
+    console.log(`Created user ${email} with temp password: ${tempPassword}`);
 
     res.json({
       success: true,
-      message: temporaryPassword
-        ? 'User created successfully. Temporary password logged to console.'
-        : 'User created successfully.',
+      message: 'User created successfully',
       data: {
         id: user.id,
         rut: user.rut,
@@ -260,7 +300,7 @@ router.put('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
-    const whereClause: Record<string, unknown> = { id };
+    const whereClause: any = { id };
     if (userRole !== 'super_admin') {
       whereClause.organizationId = organizationId;
     }
@@ -307,7 +347,7 @@ router.delete('/users/:id', authenticateToken, requireRole(['admin', 'super_admi
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
-    const whereClause: Record<string, unknown> = { id };
+    const whereClause: any = { id };
     if (userRole !== 'super_admin') {
       whereClause.organizationId = organizationId;
     }
@@ -355,7 +395,7 @@ router.get('/elections', authenticateToken, requireRole(['admin', 'super_admin']
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
-    const whereClause: Record<string, unknown> = {};
+    const whereClause: any = {};
     if (userRole !== 'super_admin') {
       whereClause.organizationId = organizationId;
     }
@@ -462,13 +502,14 @@ router.post('/elections', authenticateToken, requireRole(['admin', 'super_admin'
       category,
       maxVotesPerUser,
       isPublic,
+      requiresVoterRegistry: req.body.requiresVoterRegistry || false,
       organizationId,
       status: initialStatus as any,
     });
 
     // Create options
     const electionOptions = await Promise.all(
-      options.map((option, index) =>
+      options.map((option: any, index: number) =>
         ElectionOption.create({
           electionId: election.id,
           text: option.text,
@@ -498,7 +539,7 @@ router.post('/elections', authenticateToken, requireRole(['admin', 'super_admin'
 router.put('/elections/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, startDate, endDate, category, maxVotesPerUser, isPublic, status } = req.body;
+    const { title, description, startDate, endDate, category, maxVotesPerUser, isPublic, status, requiresVoterRegistry } = req.body;
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
@@ -539,7 +580,8 @@ router.put('/elections/:id', authenticateToken, requireRole(['admin', 'super_adm
       category,
       maxVotesPerUser,
       isPublic,
-      status
+      status,
+      requiresVoterRegistry
     });
 
     res.json({
@@ -606,7 +648,7 @@ router.get('/elections/:id/results', authenticateToken, requireRole(['admin', 's
     const organizationId = req.user.organizationId;
     const userRole = req.user.role;
 
-    const whereClause: Record<string, unknown> = { id };
+    const whereClause: any = { id };
     if (userRole !== 'super_admin') {
       whereClause.organizationId = organizationId;
     }
@@ -666,80 +708,6 @@ router.get('/elections/:id/results', authenticateToken, requireRole(['admin', 's
     res.status(500).json({
       success: false,
       message: 'Failed to load election results'
-    });
-  }
-});
-
-
-// Get single user by ID
-router.get('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
-  try {
-    const { id } = req.params;
-    const organizationId = req.user.organizationId;
-    const userRole = req.user.role;
-
-    const whereClause: Record<string, unknown> = { id };
-    if (userRole !== 'super_admin') {
-      whereClause.organizationId = organizationId;
-    }
-
-    const user = await User.findOne({
-      where: whereClause,
-      attributes: ['id', 'rut', 'email', 'fullName', 'role', 'organizationId', 'emailVerified', 'twoFactorEnabled', 'createdAt'],
-      include: [{
-        model: Organization,
-        as: 'organization',
-        attributes: ['id', 'name', 'rut']
-      }]
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: user
-    });
-  } catch (error) {
-    console.error('User fetch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to load user'
-    });
-  }
-});
-
-// Get organizations list
-router.get('/organizations', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
-  try {
-    const userRole = req.user.role;
-    const organizationId = req.user.organizationId;
-
-    const whereClause: Record<string, unknown> = {};
-    // Super admins can see all organizations, regular admins only their own
-    if (userRole !== 'super_admin') {
-      whereClause.id = organizationId;
-    }
-
-    const organizations = await Organization.findAll({
-      where: whereClause,
-      attributes: ['id', 'name', 'rut', 'email'],
-      order: [['name', 'ASC']]
-    });
-
-    res.json({
-      success: true,
-      data: organizations
-    });
-  } catch (error) {
-    console.error('Organizations fetch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to load organizations'
     });
   }
 });

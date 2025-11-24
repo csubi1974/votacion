@@ -15,6 +15,7 @@ export interface ElectionAttributes {
   category: ElectionCategory;
   maxVotesPerUser: number;
   isPublic: boolean;
+  requiresVoterRegistry: boolean;
 }
 
 export type ElectionCreationAttributes = Omit<ElectionAttributes, 'id'> & { status?: ElectionStatus };
@@ -31,6 +32,7 @@ export class Election extends Model<ElectionAttributes, ElectionCreationAttribut
   declare category: ElectionCategory;
   declare maxVotesPerUser: number;
   declare isPublic: boolean;
+  declare requiresVoterRegistry: boolean;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 
@@ -111,6 +113,11 @@ Election.init({
   isPublic: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
+  },
+  requiresVoterRegistry: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
   },
 }, {
   sequelize,

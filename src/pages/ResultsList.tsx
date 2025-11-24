@@ -24,14 +24,20 @@ interface Election {
 }
 
 export default function ResultsList() {
-    const { accessToken } = useAuthStore();
+    const { accessToken, user } = useAuthStore();
     const [elections, setElections] = useState<Election[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchCompletedElections = async () => {
             try {
-                const response = await fetch('/api/voting/completed', {
+                // Usar endpoint de admin para admin y super_admin, endpoint de voting para voters
+                const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+                const endpoint = isAdmin
+                    ? '/api/admin/elections?status=completed'
+                    : '/api/voting/completed';
+
+                const response = await fetch(endpoint, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
                     },
@@ -42,7 +48,8 @@ export default function ResultsList() {
                 }
 
                 const data = await response.json();
-                setElections(data.data);
+                // El endpoint de admin devuelve data.elections, el de voting devuelve data directamente
+                setElections(isAdmin ? data.data.elections : data.data);
             } catch (error) {
                 toast.error('Error al cargar las elecciones completadas');
                 console.error('Error fetching completed elections:', error);
@@ -52,7 +59,7 @@ export default function ResultsList() {
         };
 
         fetchCompletedElections();
-    }, [accessToken]);
+    }, [accessToken, user?.role]);
 
     if (loading) {
         return (

@@ -53,6 +53,10 @@ router.post(
       .optional()
       .isBoolean()
       .withMessage('isPublic debe ser booleano'),
+    body('requiresVoterRegistry')
+      .optional()
+      .isBoolean()
+      .withMessage('requiresVoterRegistry debe ser booleano'),
     body('options')
       .isArray({ min: 2 })
       .withMessage('Debe proporcionar al menos 2 opciones'),
@@ -82,11 +86,18 @@ router.post(
       .withMessage('La URL de la imagen debe ser válida o una ruta relativa'),
   ],
   handleValidationErrors,
-  async (req: Request & { user: { id: string; organizationId: string } }, res: Response, next: NextFunction) => {
+  async (req: Request & { user: { id: string; organizationId: string; role: string } }, res: Response, next: NextFunction) => {
     try {
-      const { organizationId } = req.user;
+      // Si es super_admin y proporciona organizationId en el body, usarlo
+      // Si no, usar la organización del usuario autenticado
+      let targetOrganizationId = req.user.organizationId;
+
+      if (req.user.role === 'super_admin' && req.body.organizationId) {
+        targetOrganizationId = req.body.organizationId;
+      }
+
       const election = await electionService.createElection(
-        organizationId,
+        targetOrganizationId,
         req.user.id,
         req.body
       );
@@ -216,6 +227,10 @@ router.put(
       .optional()
       .isBoolean()
       .withMessage('isPublic debe ser booleano'),
+    body('requiresVoterRegistry')
+      .optional()
+      .isBoolean()
+      .withMessage('requiresVoterRegistry debe ser booleano'),
     body('status')
       .optional()
       .isIn(['scheduled', 'active', 'completed', 'cancelled'])
@@ -357,6 +372,188 @@ router.post(
         success: true,
         message: 'Elección finalizada exitosamente',
         data: election,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Voter Registry Routes
+
+// Get voters for an election
+router.get(
+  '/:id/voters',
+  authenticateToken,
+  requireRole(['admin', 'super_admin']),
+  [
+    param('id').isUUID().withMessage('ID de elección no válido'),
+  ],
+  handleValidationErrors,
+  async (req: Request & { user: { id: string; organizationId: string; role: string } }, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { organizationId, role } = req.user;
+
+      // Verify election access via service (reusing getElectionById for permission check)
+      const election = await electionService.getElectionById(organizationId, id, req.user.id);
+
+      const VoterRegistryService = (await import('../services/VoterRegistryService.js')).default;
+      const voters = await VoterRegistryService.getElectionVoters(id);
+      const stats = await VoterRegistryService.getRegistryStats(id);
+
+      res.json({
+        success: true,
+        data: {
+          voters,
+          stats,
+          requiresRegistry: election.requiresVoterRegistry
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Add voter to election registry
+router.post(
+  '/:id/voters',
+  authenticateToken,
+  requireRole(['admin', 'super_admin']),
+  [
+    param('id').isUUID().withMessage('ID de elección no válido'),
+    body('userId').isUUID().withMessage('ID de usuario no válido'),
+  ],
+  handleValidationErrors,
+  async (req: Request & { user: { id: string; organizationId: string; role: string } }, res: Response, next: NextFunction) => {
+    try {
+      const { id: electionId } = req.params;
+      const { userId } = req.body;
+      const { organizationId } = req.user;
+      const addedBy = req.user.id;
+
+      // Verify access
+      await electionService.getElectionById(organizationId, electionId, req.user.id);
+
+      const VoterRegistryService = (await import('../services/VoterRegistryService.js')).default;
+      const voterRecord = await VoterRegistryService.addVoterToRegistry({
+        electionId,
+        userId,
+        addedBy,
+      });
+
+      res.json({
+        success: true,
+        message: 'Votante agregado al padrón',
+        data: voterRecord
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Remove voter from election registry
+router.delete(
+  '/:id/voters/:userId',
+  authenticateToken,
+  requireRole(['admin', 'super_admin']),
+  [
+    param('id').isUUID().withMessage('ID de elección no válido'),
+    param('userId').isUUID().withMessage('ID de usuario no válido'),
+  ],
+  handleValidationErrors,
+  async (req: Request & { user: { id: string; organizationId: string; role: string } }, res: Response, next: NextFunction) => {
+    try {
+      const { id: electionId, userId } = req.params;
+      const { organizationId } = req.user;
+
+      // Verify access
+      await electionService.getElectionById(organizationId, electionId, req.user.id);
+
+      const VoterRegistryService = (await import('../services/VoterRegistryService.js')).default;
+      const removed = await VoterRegistryService.removeVoterFromRegistry(electionId, userId);
+
+      if (!removed) {
+        return res.status(404).json({
+          success: false,
+          message: 'Votante no encontrado en el padrón'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Votante eliminado del padrón'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Bulk import voters to election registry
+router.post(
+  '/:id/voters/import',
+  authenticateToken,
+  requireRole(['admin', 'super_admin']),
+  [
+    param('id').isUUID().withMessage('ID de elección no válido'),
+    body('voters').isArray({ min: 1 }).withMessage('Se requiere un array de votantes no vacío'),
+  ],
+  handleValidationErrors,
+  async (req: Request & { user: { id: string; organizationId: string; role: string } }, res: Response, next: NextFunction) => {
+    try {
+      const { id: electionId } = req.params;
+      const { voters } = req.body;
+      const { organizationId } = req.user;
+      const addedBy = req.user.id;
+
+      // Verify access
+      await electionService.getElectionById(organizationId, electionId, req.user.id);
+
+      const VoterRegistryService = (await import('../services/VoterRegistryService.js')).default;
+      const result = await VoterRegistryService.bulkAddVoters(
+        electionId,
+        voters,
+        addedBy,
+        organizationId
+      );
+
+      res.json({
+        success: true,
+        message: `Importación completada: ${result.added} agregados, ${result.skipped} omitidos`,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Get registry statistics
+router.get(
+  '/:id/voters/stats',
+  authenticateToken,
+  requireRole(['admin', 'super_admin']),
+  [
+    param('id').isUUID().withMessage('ID de elección no válido'),
+  ],
+  handleValidationErrors,
+  async (req: Request & { user: { id: string; organizationId: string; role: string } }, res: Response, next: NextFunction) => {
+    try {
+      const { id: electionId } = req.params;
+      const { organizationId } = req.user;
+
+      // Verify access
+      await electionService.getElectionById(organizationId, electionId, req.user.id);
+
+      const VoterRegistryService = (await import('../services/VoterRegistryService.js')).default;
+      const stats = await VoterRegistryService.getRegistryStats(electionId);
+
+      res.json({
+        success: true,
+        data: stats
       });
     } catch (error) {
       next(error);

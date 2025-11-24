@@ -19,6 +19,9 @@ import UserProfile from "@/pages/UserProfile";
 import BulkImport from "@/pages/BulkImport";
 import AdminUserForm from "@/pages/AdminUserForm";
 import ResultsList from "@/pages/ResultsList";
+import VoterRegistry from "@/pages/VoterRegistry";
+import AdminOrganizations from "@/pages/AdminOrganizations";
+import AdminOrganizationForm from "@/pages/AdminOrganizationForm";
 
 export default function App() {
   return (
@@ -89,6 +92,10 @@ export default function App() {
             <Route path="elections/:id" element={<ElectionResultsPage />} />
             <Route path="elections/:id/edit" element={<AdminElectionForm />} />
             <Route path="elections/:id/results" element={<ElectionResultsPage />} />
+            <Route path="elections/:id/voters" element={<VoterRegistry />} />
+            <Route path="organizations" element={<AdminOrganizations />} />
+            <Route path="organizations/new" element={<AdminOrganizationForm />} />
+            <Route path="organizations/:id" element={<AdminOrganizationForm />} />
             <Route path="audit" element={<AuditLogsPage />} />
           </Route>
         </Routes>

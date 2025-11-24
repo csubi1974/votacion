@@ -23,11 +23,13 @@ interface ElectionFormData {
   category: 'board_members' | 'policy' | 'budget' | 'leadership' | 'other';
   maxVotesPerUser: number;
   isPublic: boolean;
+  requiresVoterRegistry: boolean;
+  organizationId?: string; // Solo para super_admin
   options: ElectionOption[];
 }
 
 export default function ElectionForm() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditing = !!id;
@@ -42,6 +44,8 @@ export default function ElectionForm() {
     category: 'other',
     maxVotesPerUser: 1,
     isPublic: false,
+    requiresVoterRegistry: false,
+    organizationId: user?.role === 'super_admin' ? '' : user?.organizationId,
     options: [
       { title: '', description: '', orderIndex: 0 },
       { title: '', description: '', orderIndex: 1 },
@@ -50,6 +54,7 @@ export default function ElectionForm() {
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [organizations, setOrganizations] = useState<Array<{ id: string; name: string }>>([]);
 
   const fetchElection = useCallback(async () => {
     try {
@@ -73,6 +78,7 @@ export default function ElectionForm() {
         category: ElectionFormData['category'];
         maxVotesPerUser: number;
         isPublic: boolean;
+        requiresVoterRegistry: boolean;
         options: Array<{ id: string; text: string; description?: string; imageUrl?: string }>;
       };
 
@@ -89,6 +95,7 @@ export default function ElectionForm() {
         category: election.category,
         maxVotesPerUser: election.maxVotesPerUser,
         isPublic: election.isPublic,
+        requiresVoterRegistry: election.requiresVoterRegistry || false,
         options: election.options.map((opt, index) => ({
           id: opt.id,
           title: opt.text,
@@ -111,6 +118,30 @@ export default function ElectionForm() {
       fetchElection();
     }
   }, [isEditing, fetchElection]);
+
+  // Cargar organizaciones si es super_admin
+  useEffect(() => {
+    const fetchOrganizations = async () => {
+      if (user?.role !== 'super_admin') return;
+
+      try {
+        const response = await fetch('/api/admin/organizations', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setOrganizations(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching organizations:', error);
+      }
+    };
+
+    fetchOrganizations();
+  }, [user?.role, accessToken]);
 
   const [uploadingImages, setUploadingImages] = useState<{ [key: number]: boolean }>({});
 
@@ -213,6 +244,12 @@ export default function ElectionForm() {
       return false;
     }
 
+    // Validar organización para super_admin
+    if (user?.role === 'super_admin' && !formData.organizationId) {
+      toast.error('Debe seleccionar una organización');
+      return false;
+    }
+
     if (!formData.startDate || !formData.startTime) {
       toast.error('La fecha y hora de inicio son requeridas');
       return false;
@@ -260,7 +297,7 @@ export default function ElectionForm() {
       const startDateTime = new Date(`${formData.startDate}T${formData.startTime}`);
       const endDateTime = new Date(`${formData.endDate}T${formData.endTime}`);
 
-      const payload = {
+      const payload: any = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         startDate: startDateTime.toISOString(),
@@ -268,6 +305,7 @@ export default function ElectionForm() {
         category: formData.category,
         maxVotesPerUser: formData.maxVotesPerUser,
         isPublic: formData.isPublic,
+        requiresVoterRegistry: formData.requiresVoterRegistry,
         options: formData.options
           .filter(opt => opt.title.trim())
           .map(opt => ({
@@ -276,6 +314,11 @@ export default function ElectionForm() {
             imageUrl: opt.imageUrl?.trim() || '',
           })),
       };
+
+      // Si es super_admin, incluir organizationId
+      if (user?.role === 'super_admin' && formData.organizationId) {
+        payload.organizationId = formData.organizationId;
+      }
 
       const url = isEditing ? `/api/elections/${id}` : '/api/elections';
       const method = isEditing ? 'PUT' : 'POST';
@@ -336,6 +379,31 @@ export default function ElectionForm() {
           {/* Información básica */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Información General</h3>
+
+            {/* Selector de organización (solo para super_admin) */}
+            {user?.role === 'super_admin' && !isEditing && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Organización *
+                </label>
+                <select
+                  value={formData.organizationId || ''}
+                  onChange={(e) => handleInputChange('organizationId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Seleccione una organización</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-sm text-gray-500">
+                  Seleccione la organización para la cual se creará esta elección.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -465,6 +533,47 @@ export default function ElectionForm() {
                   onChange={(e) => handleInputChange('endTime', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Configuración Adicional */}
+          <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Configuración Adicional</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="isPublic"
+                    name="isPublic"
+                    type="checkbox"
+                    checked={formData.isPublic}
+                    onChange={(e) => handleInputChange('isPublic', e.target.checked)}
+                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="isPublic" className="font-medium text-gray-700">Elección Pública</label>
+                  <p className="text-gray-500">Si se marca, la elección será visible para todos los usuarios.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="requiresVoterRegistry"
+                    name="requiresVoterRegistry"
+                    type="checkbox"
+                    checked={formData.requiresVoterRegistry}
+                    onChange={(e) => handleInputChange('requiresVoterRegistry', e.target.checked)}
+                    className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="requiresVoterRegistry" className="font-medium text-gray-700">Requiere Padrón Electoral</label>
+                  <p className="text-gray-500">Si se marca, solo los usuarios agregados al padrón podrán votar.</p>
+                </div>
               </div>
             </div>
           </div>

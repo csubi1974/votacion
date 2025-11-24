@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Search, BarChart3, Vote, StopCircle, CheckCircle } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Search, BarChart3, Vote, StopCircle, CheckCircle, Play, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '../stores/authStore';
 
@@ -11,9 +11,15 @@ interface Election {
   status: 'scheduled' | 'active' | 'completed' | 'cancelled';
   startDate: string;
   endDate: string;
+  requiresVoterRegistry?: boolean;
   category: string;
   maxVotesPerUser: number;
   isPublic: boolean;
+  organization?: {
+    id: string;
+    name: string;
+    rut?: string;
+  };
   options: Array<{
     id: string;
     title: string;
@@ -27,7 +33,7 @@ export default function AdminElections() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const { accessToken } = useAuthStore();
+  const { accessToken, user } = useAuthStore();
 
   const fetchElections = useCallback(async () => {
     try {
@@ -144,6 +150,36 @@ export default function AdminElections() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Error al finalizar elección');
       console.error('Election completion error:', error);
+    }
+  };
+
+  const handleActivateElection = async (electionId: string, electionTitle: string) => {
+    if (!confirm(`¿Está seguro de que desea activar la elección "${electionTitle}"? Los votantes podrán participar inmediatamente.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/elections/${electionId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'active'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to activate election');
+      }
+
+      toast.success('Elección activada exitosamente. Los votantes ya pueden participar.');
+      fetchElections();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al activar elección');
+      console.error('Election activation error:', error);
     }
   };
 
@@ -274,6 +310,11 @@ export default function AdminElections() {
                     <h4 className="text-sm font-medium text-gray-900">{election.title}</h4>
                     <p className="text-sm text-gray-500 mt-1">{election.description}</p>
                     <div className="flex items-center space-x-4 mt-2">
+                      {user?.role === 'super_admin' && election.organization && (
+                        <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                          {election.organization.name}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-400">
                         {new Date(election.startDate).toLocaleDateString('es-CL')} - {new Date(election.endDate).toLocaleDateString('es-CL')}
                       </span>
@@ -316,6 +357,24 @@ export default function AdminElections() {
                       >
                         <Edit className="h-5 w-5" />
                       </Link>
+                      {election.requiresVoterRegistry && (
+                        <Link
+                          to={`/admin/elections/${election.id}/voters`}
+                          className="text-indigo-600 hover:text-indigo-800"
+                          title="Gestionar Padrón Electoral"
+                        >
+                          <Users className="h-5 w-5" />
+                        </Link>
+                      )}
+                      {election.status === 'scheduled' && (
+                        <button
+                          onClick={() => handleActivateElection(election.id, election.title)}
+                          className="text-green-600 hover:text-green-800"
+                          title="Activar elección ahora"
+                        >
+                          <Play className="h-5 w-5" />
+                        </button>
+                      )}
                       {election.status === 'active' && (
                         <button
                           onClick={() => handleCompleteElection(election.id, election.title)}
