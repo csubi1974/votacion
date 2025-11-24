@@ -91,6 +91,7 @@ export class AuditService {
         include: [
           {
             model: User,
+            as: 'user',
             attributes: ['id', 'fullName', 'email', 'role'],
           },
         ],
@@ -164,6 +165,7 @@ export class AuditService {
         include: [
           {
             model: User,
+            as: 'user',
             attributes: ['id', 'fullName', 'email', 'role'],
           },
         ],
@@ -230,6 +232,7 @@ export class AuditService {
         include: [
           {
             model: User,
+            as: 'user',
             attributes: ['id', 'fullName', 'email', 'role'],
           },
         ],
@@ -279,6 +282,7 @@ export class AuditService {
         include: [
           {
             model: User,
+            as: 'user',
             attributes: ['id', 'fullName', 'email', 'role'],
           },
         ],
@@ -384,6 +388,7 @@ export class AuditService {
         include: [
           {
             model: User,
+            as: 'user',
             attributes: ['id', 'fullName', 'email', 'role'],
           },
         ],

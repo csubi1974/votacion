@@ -8,6 +8,7 @@ export interface User {
   fullName: string;
   role: 'voter' | 'admin' | 'super_admin';
   organizationId: string;
+  organizationName?: string; // Nombre de la organización
   emailVerified: boolean;
   twoFactorEnabled: boolean;
   createdAt: string;
@@ -44,7 +45,7 @@ export interface RegisterData {
   organizationId?: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.0.3:3001/api';
 
 // Helper function to handle API responses
 const handleResponse = async (response: Response) => {

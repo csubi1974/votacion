@@ -3,6 +3,7 @@ import { validateRut } from '../utils/rutValidator.js';
 import { hashPassword, comparePassword, generateEmailVerificationToken } from '../utils/security.js';
 import { generateTokenPair } from '../utils/jwt.js';
 import * as speakeasy from 'speakeasy';
+import { AuditService } from './AuditService.js';
 
 export interface LoginData {
   rut?: string;
@@ -22,7 +23,7 @@ export interface RegisterData {
 export interface AuthResponse {
   success: boolean;
   message: string;
-  user?: { id: string; rut?: string; email: string; fullName: string; role?: string; organizationId?: string; emailVerified?: boolean; twoFactorEnabled?: boolean };
+  user?: { id: string; rut?: string; email: string; fullName: string; role?: string; organizationId?: string; organizationName?: string; emailVerified?: boolean; twoFactorEnabled?: boolean };
   tokens?: { accessToken: string; refreshToken: string };
   requires2FA?: boolean;
 }
@@ -31,6 +32,12 @@ export interface AuthResponse {
  * Authentication service for handling user login, registration, and 2FA
  */
 export class AuthService {
+  private auditService: AuditService;
+
+  constructor() {
+    this.auditService = new AuditService();
+  }
+
   /**
    * Validate RUT format
    */
@@ -173,7 +180,7 @@ export class AuthService {
   /**
    * Login user
    */
-  async login(data: LoginData): Promise<AuthResponse> {
+  async login(data: LoginData, ipAddress: string = '0.0.0.0'): Promise<AuthResponse> {
     try {
       let user: User | null = null;
 
@@ -191,7 +198,19 @@ export class AuthService {
         // Find user by RUT
         user = await User.findOne({ where: { rut: data.rut } });
       }
+
       if (!user) {
+        // Log failed login attempt
+        await this.auditService.logActivity({
+          userId: 'unknown',
+          action: 'LOGIN_FAILED',
+          resourceType: 'user',
+          resourceId: undefined,
+          oldValues: null,
+          newValues: { rut: data.rut || data.email, reason: 'User not found' },
+          ipAddress,
+        });
+
         return {
           success: false,
           message: 'Invalid credentials',
@@ -200,6 +219,17 @@ export class AuthService {
 
       // Check if account is locked
       if (user.isLocked()) {
+        // Log account locked attempt
+        await this.auditService.logActivity({
+          userId: user.id,
+          action: 'ACCOUNT_LOCKED',
+          resourceType: 'user',
+          resourceId: user.id,
+          oldValues: null,
+          newValues: { lockedUntil: user.lockedUntil },
+          ipAddress,
+        });
+
         return {
           success: false,
           message: 'Account is temporarily locked due to too many failed login attempts. Please try again later.',
@@ -212,6 +242,20 @@ export class AuthService {
         // Increment failed login attempts
         user.incrementFailedAttempts();
         await user.save();
+
+        // Log failed login
+        await this.auditService.logActivity({
+          userId: user.id,
+          action: 'LOGIN_FAILED',
+          resourceType: 'user',
+          resourceId: user.id,
+          oldValues: null,
+          newValues: {
+            reason: 'Invalid password',
+            failedAttempts: user.failedLoginAttempts
+          },
+          ipAddress,
+        });
 
         return {
           success: false,
@@ -248,6 +292,21 @@ export class AuthService {
       // Generate tokens
       const tokens = generateTokenPair(user);
 
+      // Get organization name
+      const { Organization } = await import('../models/Organization.js');
+      const organization = await Organization.findByPk(user.organizationId);
+
+      // Log successful login
+      await this.auditService.logActivity({
+        userId: user.id,
+        action: 'LOGIN_SUCCESS',
+        resourceType: 'user',
+        resourceId: user.id,
+        oldValues: null,
+        newValues: { role: user.role, organizationId: user.organizationId },
+        ipAddress,
+      });
+
       return {
         success: true,
         message: 'Login successful',
@@ -258,6 +317,8 @@ export class AuthService {
           fullName: user.fullName,
           role: user.role,
           organizationId: user.organizationId,
+          organizationName: organization?.name,
+          emailVerified: user.emailVerified,
           twoFactorEnabled: user.twoFactorEnabled,
         },
         tokens,
@@ -309,6 +370,10 @@ export class AuthService {
       // Generate tokens
       const tokens = generateTokenPair(user);
 
+      // Get organization name
+      const { Organization } = await import('../models/Organization.js');
+      const organization = await Organization.findByPk(user.organizationId);
+
       return {
         success: true,
         message: '2FA verification successful',
@@ -319,6 +384,8 @@ export class AuthService {
           fullName: user.fullName,
           role: user.role,
           organizationId: user.organizationId,
+          organizationName: organization?.name,
+          emailVerified: user.emailVerified,
           twoFactorEnabled: user.twoFactorEnabled,
         },
         tokens,

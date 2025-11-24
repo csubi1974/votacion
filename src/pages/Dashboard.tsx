@@ -192,6 +192,13 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="ml-4">
                 <h1 className="text-xl font-semibold text-gray-900">Plataforma de Votación</h1>
+                {user?.organizationName && (
+                  <p className="text-sm text-gray-500 flex items-center mt-0.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      🏢 {user.organizationName}
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
 

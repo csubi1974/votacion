@@ -1,10 +1,10 @@
 {
-  "name": "trae-project",
+  "name": "votapp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "client:dev": "vite",
+    "client:dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

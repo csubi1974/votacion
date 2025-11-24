@@ -131,7 +131,7 @@ router.post('/login', [
     const { rut, email, password } = req.body;
 
     // Login user
-    const result = await authService.login({ rut, email, password });
+    const result = await authService.login({ rut, email, password }, req.ip || '0.0.0.0');
 
     if (result.success) {
       if (result.requires2FA) {
@@ -266,6 +266,23 @@ type SessionRequest = Request & { session?: { destroy: (cb: (err?: unknown) => v
 type AuthedRequest = Request & { user: { id: string } };
 router.post('/logout', authenticateToken, async (req: SessionRequest, res: Response) => {
   try {
+    const userId = (req as AuthedRequest).user?.id;
+
+    // Log logout
+    if (userId) {
+      const { AuditService } = await import('../services/AuditService.js');
+      const auditService = new AuditService();
+      await auditService.logActivity({
+        userId,
+        action: 'LOGOUT',
+        resourceType: 'user',
+        resourceId: userId,
+        oldValues: null,
+        newValues: null,
+        ipAddress: req.ip || '0.0.0.0',
+      });
+    }
+
     // Clear any session data
     if (req.session) {
       req.session.destroy((err?: unknown) => {
