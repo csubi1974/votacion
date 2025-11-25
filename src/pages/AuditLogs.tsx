@@ -183,12 +183,40 @@ export default function AuditLogs() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         >
                             <option value="">Todas</option>
-                            <option value="LOGIN_SUCCESS">Login Exitoso</option>
-                            <option value="LOGIN_FAILED">Login Fallido</option>
-                            <option value="LOGOUT">Logout</option>
-                            <option value="VOTE_CAST">Voto Emitido</option>
-                            <option value="ELECTION_CREATED">Elección Creada</option>
-                            <option value="USER_CREATED">Usuario Creado</option>
+                            <optgroup label="Autenticación">
+                                <option value="LOGIN_SUCCESS">Login Exitoso</option>
+                                <option value="LOGIN_FAILED">Login Fallido</option>
+                                <option value="LOGOUT">Logout</option>
+                                <option value="ACCOUNT_LOCKED">Cuenta Bloqueada</option>
+                                <option value="2FA_VERIFICATION_SUCCESS">2FA Exitoso</option>
+                                <option value="2FA_VERIFICATION_FAILED">2FA Fallido</option>
+                            </optgroup>
+                            <optgroup label="Votación">
+                                <option value="VOTE_ATTEMPT">Intento de Voto</option>
+                                <option value="VOTE_CAST">Voto Emitido</option>
+                                <option value="VOTE_FAILED">Voto Fallido</option>
+                            </optgroup>
+                            <optgroup label="Usuarios">
+                                <option value="USER_REGISTERED">Usuario Registrado</option>
+                                <option value="USER_CREATED">Usuario Creado</option>
+                                <option value="USER_UPDATED">Usuario Actualizado</option>
+                                <option value="USER_DELETED">Usuario Eliminado</option>
+                                <option value="ROLE_CHANGED">Rol Cambiado</option>
+                            </optgroup>
+                            <optgroup label="Contraseñas">
+                                <option value="PASSWORD_CHANGED">Contraseña Cambiada</option>
+                                <option value="PASSWORD_RESET_REQUESTED">Reset Solicitado</option>
+                                <option value="PASSWORD_RESET_COMPLETED">Reset Completado</option>
+                            </optgroup>
+                            <optgroup label="Elecciones">
+                                <option value="ELECTION_CREATED">Elección Creada</option>
+                                <option value="ELECTION_UPDATED">Elección Actualizada</option>
+                                <option value="ELECTION_DELETED">Elección Eliminada</option>
+                            </optgroup>
+                            <optgroup label="2FA">
+                                <option value="2FA_ENABLED">2FA Activado</option>
+                                <option value="2FA_DISABLED">2FA Desactivado</option>
+                            </optgroup>
                         </select>
                     </div>
 

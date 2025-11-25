@@ -511,9 +511,23 @@ router.put('/profile', [
     if (Object.keys(updates).length > 0) {
       await user.update(updates);
 
-      // Log audit event
+      // Log password change separately if password was updated
       const { AuditService } = await import('../services/AuditService.js');
       const auditService = new AuditService();
+
+      if (updates.passwordHash) {
+        await auditService.logActivity({
+          userId: user.id,
+          action: 'PASSWORD_CHANGED',
+          resourceType: 'User',
+          resourceId: user.id,
+          oldValues: null,
+          newValues: { passwordChanged: true },
+          ipAddress: req.ip || '',
+        });
+      }
+
+      // Log general profile update
       await auditService.logActivity({
         userId: user.id,
         action: 'PROFILE_UPDATED',
@@ -596,6 +610,19 @@ router.post('/forgot-password', [
       userId: user.id,
       token: hashedToken,
       expiresAt,
+    });
+
+    // Log password reset request
+    const { AuditService } = await import('../services/AuditService.js');
+    const auditService = new AuditService();
+    await auditService.logActivity({
+      userId: user.id,
+      action: 'PASSWORD_RESET_REQUESTED',
+      resourceType: 'User',
+      resourceId: user.id,
+      oldValues: null,
+      newValues: { email: user.email },
+      ipAddress: req.ip || '',
     });
 
     // Generate reset URL

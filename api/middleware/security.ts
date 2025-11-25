@@ -11,7 +11,7 @@ const TOKEN_EXPIRY = 15 * 60 * 1000; // 15 minutes
 // Rate limiting configurations
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'development' ? 100 : 5,
+  max: process.env.NODE_ENV === 'development' ? 1000 : 5,
   message: 'Too many authentication attempts, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -19,7 +19,7 @@ export const authLimiter = rateLimit({
 
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // Higher limit for development
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -64,10 +64,10 @@ export const securityHeaders = helmet({
 export const generateCSRFToken = (): string => {
   const token = crypto.randomBytes(32).toString('hex');
   csrfTokens.set(token, Date.now() + TOKEN_EXPIRY);
-  
+
   // Clean up expired tokens
   cleanupExpiredTokens();
-  
+
   return token;
 };
 
@@ -85,12 +85,12 @@ const cleanupExpiredTokens = () => {
 export const validateCSRFToken = (token: string): boolean => {
   const expiry = csrfTokens.get(token);
   if (!expiry) return false;
-  
+
   if (expiry < Date.now()) {
     csrfTokens.delete(token);
     return false;
   }
-  
+
   // Token is valid, remove it (one-time use)
   csrfTokens.delete(token);
   return true;
@@ -102,16 +102,16 @@ export const csrfProtection = (req: Request, res: Response, next: NextFunction) 
   if (req.method === 'GET' || req.headers.authorization) {
     return next();
   }
-  
+
   const token = req.headers['x-csrf-token'] as string || req.body._csrf;
-  
+
   if (!token || !validateCSRFToken(token)) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: 'Invalid or missing CSRF token',
       code: 'CSRF_INVALID'
     });
   }
-  
+
   next();
 };
 
@@ -135,19 +135,19 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
     }
     return obj;
   };
-  
+
   if (req.body) {
     req.body = sanitizeObject(req.body) as unknown as Record<string, unknown>;
   }
-  
+
   if (req.query) {
     req.query = sanitizeObject(req.query) as unknown as Record<string, unknown>;
   }
-  
+
   if (req.params) {
     req.params = sanitizeObject(req.params) as unknown as Record<string, unknown>;
   }
-  
+
   next();
 };
 
@@ -157,7 +157,7 @@ export const xssProtection = (req: Request, res: Response, next: NextFunction) =
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   next();
 };
 
@@ -172,7 +172,7 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
     /onload\s*=/gi,
     /onerror\s*=/gi
   ];
-  
+
   const checkForSuspiciousContent = (obj: unknown): boolean => {
     if (typeof obj === 'string') {
       return suspiciousPatterns.some(pattern => pattern.test(obj));
@@ -185,22 +185,22 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
     }
     return false;
   };
-  
+
   // Check body, query, and params for suspicious content
   const suspiciousSources: string[] = [];
-  
+
   if (req.body && checkForSuspiciousContent(req.body)) {
     suspiciousSources.push('body');
   }
-  
+
   if (req.query && checkForSuspiciousContent(req.query)) {
     suspiciousSources.push('query');
   }
-  
+
   if (req.params && checkForSuspiciousContent(req.params)) {
     suspiciousSources.push('params');
   }
-  
+
   if (suspiciousSources.length > 0) {
     return res.status(400).json({
       error: 'Suspicious content detected',
@@ -208,14 +208,14 @@ export const validateInput = (req: Request, res: Response, next: NextFunction) =
       sources: suspiciousSources
     });
   }
-  
+
   next();
 };
 
 // Security audit logging
 export const securityAudit = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
-  
+
   res.on('finish', () => {
     const duration = Date.now() - startTime;
     const auditData = {
@@ -229,18 +229,18 @@ export const securityAudit = (req: Request, res: Response, next: NextFunction) =
       userId: (req as Request & { user?: { id?: string } }).user?.id || null,
       suspicious: false
     };
-    
+
     // Flag suspicious requests
     if (res.statusCode === 403 || res.statusCode === 429) {
       auditData.suspicious = true;
     }
-    
+
     // Log security events
     if (auditData.suspicious || duration > 5000 || res.statusCode >= 400) {
       console.log('[SECURITY AUDIT]', JSON.stringify(auditData));
     }
   });
-  
+
   next();
 };
 
@@ -250,9 +250,9 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
   if (!req.file && !req.files) {
     return next();
   }
-  
+
   const files = Array.isArray(req.files) ? req.files : [req.file];
-  
+
   const allowedMimeTypes = [
     'image/jpeg',
     'image/png',
@@ -261,9 +261,9 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
     'application/pdf',
     'text/csv'
   ];
-  
+
   const maxFileSize = 5 * 1024 * 1024; // 5MB
-  
+
   for (const file of files) {
     if (!allowedMimeTypes.includes(file.mimetype)) {
       return res.status(400).json({
@@ -272,7 +272,7 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
         allowed: allowedMimeTypes
       });
     }
-    
+
     if (file.size > maxFileSize) {
       return res.status(400).json({
         error: 'File too large',
@@ -280,7 +280,7 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
         maxSize: maxFileSize
       });
     }
-    
+
     // Check for malicious file signatures
     const maliciousSignatures = [
       Buffer.from('3c3f786d6c', 'hex'), // <?xml
@@ -289,12 +289,12 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
       Buffer.from('3c3f706870', 'hex'), // <?php
       Buffer.from('252150532d41646f6265', 'hex'), // %!PS-Adobe
     ];
-    
+
     const fileBuffer = file.buffer.slice(0, 20); // Check first 20 bytes
     const hasMaliciousSignature = maliciousSignatures.some(signature =>
       fileBuffer.includes(signature)
     );
-    
+
     if (hasMaliciousSignature) {
       return res.status(400).json({
         error: 'Potentially malicious file detected',
@@ -302,7 +302,7 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
       });
     }
   }
-  
+
   next();
 };
 
@@ -310,21 +310,21 @@ export const validateFileUpload = (req: Request & { file?: UploadedFile; files?:
 export const ipFilter = (allowedIPs: string[] = [], blockedIPs: string[] = []) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const clientIP = req.ip || req.connection.remoteAddress || '';
-    
+
     if (blockedIPs.includes(clientIP)) {
       return res.status(403).json({
         error: 'Access denied',
         code: 'IP_BLOCKED'
       });
     }
-    
+
     if (allowedIPs.length > 0 && !allowedIPs.includes(clientIP)) {
       return res.status(403).json({
         error: 'Access denied',
         code: 'IP_NOT_ALLOWED'
       });
     }
-    
+
     next();
   };
 };

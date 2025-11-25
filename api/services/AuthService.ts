@@ -147,6 +147,22 @@ export class AuthService {
         emailVerified: isDevelopment, // Auto-verify in development
       });
 
+      // Log user registration
+      await this.auditService.logActivity({
+        userId: user.id,
+        action: 'USER_REGISTERED',
+        resourceType: 'user',
+        resourceId: user.id,
+        newValues: {
+          rut: user.rut,
+          email: user.email,
+          fullName: user.fullName,
+          organizationId: user.organizationId,
+          emailVerified: user.emailVerified,
+        },
+        ipAddress: '0.0.0.0', // Will be updated when we add ipAddress parameter
+      });
+
       // TODO: Send email verification email
       if (isDevelopment) {
         console.log(`✅ Development mode: Email auto-verified for ${data.email}`);
@@ -335,7 +351,7 @@ export class AuthService {
   /**
    * Verify 2FA code
    */
-  async verify2FA(userId: string, code: string): Promise<AuthResponse> {
+  async verify2FA(userId: string, code: string, ipAddress: string = '0.0.0.0'): Promise<AuthResponse> {
     try {
       const user = await User.findByPk(userId);
       if (!user) {
@@ -361,11 +377,29 @@ export class AuthService {
       });
 
       if (!verified) {
+        // Log failed 2FA verification
+        await this.auditService.logActivity({
+          userId: user.id,
+          action: '2FA_VERIFICATION_FAILED',
+          resourceType: 'user',
+          resourceId: user.id,
+          ipAddress,
+        });
+
         return {
           success: false,
           message: 'Invalid 2FA code',
         };
       }
+
+      // Log successful 2FA verification
+      await this.auditService.logActivity({
+        userId: user.id,
+        action: '2FA_VERIFICATION_SUCCESS',
+        resourceType: 'user',
+        resourceId: user.id,
+        ipAddress,
+      });
 
       // Generate tokens
       const tokens = generateTokenPair(user);

@@ -23,23 +23,23 @@
 
 ## ⏳ EN PROGRESO
 
-### 4. Verificación 2FA
-- ⏳ `2FA_VERIFICATION_SUCCESS` - Por implementar
-- ⏳ `2FA_VERIFICATION_FAILED` - Por implementar
+### 4. Verificación 2FA (IMPORTANTE)
+- ✅ `2FA_VERIFICATION_SUCCESS` - Implementado en AuthService.ts
+- ✅ `2FA_VERIFICATION_FAILED` - Implementado en AuthService.ts
 
-### 5. Cambio de Contraseña
-- ⏳ `PASSWORD_CHANGED` - Por implementar
-- ⏳ `PASSWORD_RESET_REQUESTED` - Por implementar
+### 5. Cambio de Contraseña (IMPORTANTE)
+- ✅ `PASSWORD_CHANGED` - Implementado en routes/auth.ts (update-profile)
+- ✅ `PASSWORD_RESET_REQUESTED` - Implementado en routes/auth.ts (forgot-password)
+
+### 6. Registro de Usuarios (IMPORTANTE)
+- ✅ `USER_REGISTERED` - Implementado en AuthService.ts
 
 ---
 
-## 📝 PENDIENTE (Prioridad Media)
-
-### 6. Registro de Usuarios
-- ❌ `USER_REGISTERED` - Implementar en AuthService.ts
+## 📝 PENDIENTE (Prioridad Baja)
 
 ### 7. Desbloqueo de Cuenta
-- ❌ `ACCOUNT_UNLOCKED` - Implementar donde se desbloquee
+- ❌ `ACCOUNT_UNLOCKED` - Por implementar (cuando se implemente funcionalidad de desbloqueo manual)
 
 ---
 
@@ -60,24 +60,36 @@ const result = await authService.login(loginData, req.ip || '0.0.0.0');
 
 ## 📊 Progreso Total
 
-- ✅ Completado: 3/40 acciones (7.5%)
-- ⏳ En progreso: 4/40 acciones (10%)
-- ❌ Pendiente: 33/40 acciones (82.5%)
+- ✅ **Completado: 13/14 acciones críticas (92.8%)**
+  - Login/Logout: 4/4 ✅
+  - Votación: 3/3 ✅
+  - Gestión de Usuarios: 4/4 ✅
+  - 2FA Verification: 2/2 ✅
+- ❌ Pendiente: 1/14 acciones (7.2%)
+  - Account Unlocked: 1/1 (funcionalidad no implementada aún)
 
 ---
 
-## 🎯 Próximos Pasos (Orden de Prioridad)
+## 🎯 Próximos Pasos
 
-1. ✅ Actualizar `routes/auth.ts` para pasar ipAddress
-2. ⏳ Implementar LOGOUT en routes/auth.ts
-3. ⏳ Implementar 2FA_VERIFICATION en AuthService.ts
-4. ❌ Implementar VOTE_* en VotingService.ts
-5. ❌ Implementar USER_* en routes/admin.ts
-6. ❌ Implementar PASSWORD_CHANGED
-7. ❌ Implementar PASSWORD_RESET_REQUESTED
+1. ✅ ~~Actualizar `routes/auth.ts` para pasar ipAddress~~ - COMPLETADO
+2. ✅ ~~Implementar LOGOUT en routes/auth.ts~~ - COMPLETADO
+3. ✅ ~~Implementar 2FA_VERIFICATION en AuthService.ts~~ - COMPLETADO
+4. ✅ ~~Implementar VOTE_* en VotingService.ts~~ - COMPLETADO
+5. ✅ ~~Implementar USER_* en routes/admin.ts~~ - COMPLETADO
+6. ✅ ~~Implementar PASSWORD_CHANGED~~ - COMPLETADO
+7. ✅ ~~Implementar PASSWORD_RESET_REQUESTED~~ - COMPLETADO
+8. ✅ ~~Implementar USER_REGISTERED~~ - COMPLETADO
+9. ❌ Implementar ACCOUNT_UNLOCKED (cuando se implemente funcionalidad)
 
 ---
 
 ## 💡 Nota
 
-El trabajo está en progreso. Se está implementando de forma incremental para asegurar que cada parte funcione correctamente antes de continuar.
+**¡Auditoría casi completa!** Se han implementado todos los logs críticos para:
+- Autenticación (login, logout, 2FA)
+- Votación (intentos, éxitos, fallos)
+- Gestión de usuarios (crear, actualizar, eliminar, cambio de rol)
+- Cambio de contraseña y reset
+
+Solo queda pendiente `ACCOUNT_UNLOCKED`, que requiere primero implementar la funcionalidad de desbloqueo manual de cuentas.

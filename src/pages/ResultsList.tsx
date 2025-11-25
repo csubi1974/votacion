@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { BarChart3, Calendar, Users, ArrowLeft, TrendingUp } from 'lucide-react';
+import { BarChart3, Calendar, Users, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -70,23 +70,7 @@ export default function ResultsList() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto p-6">
-            <div className="mb-8">
-                <Link
-                    to="/dashboard"
-                    className="flex items-center text-gray-600 hover:text-gray-800 mb-4 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Volver al Dashboard
-                </Link>
-
-                <div className="flex items-center mb-2">
-                    <BarChart3 className="w-8 h-8 text-green-600 mr-3" />
-                    <h1 className="text-3xl font-bold text-gray-900">Resultados de Votaciones</h1>
-                </div>
-                <p className="text-gray-600">Consulta los resultados de las votaciones finalizadas</p>
-            </div>
-
+        <div>
             {elections.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-lg shadow-md border border-gray-200">
                     <BarChart3 className="mx-auto h-16 w-16 text-gray-400 mb-4" />

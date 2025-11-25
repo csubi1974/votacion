@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { CheckCircle, Clock, Users, ArrowLeft, Check, X, Sparkles, TrendingUp } from 'lucide-react';
+import { CheckCircle, Clock, Users, ArrowLeft, Check, X, Sparkles, TrendingUp, Vote } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ElectionOption {
@@ -242,11 +243,8 @@ export default function VotingInterface() {
 
   if (!selectedElection) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Votaciones Disponibles</h1>
-          <p className="text-gray-600">Selecciona una elección para votar</p>
-        </div>
+      <div>
+
 
         {elections.length === 0 ? (
           <div className="text-center py-12">
