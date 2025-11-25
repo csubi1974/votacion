@@ -45,7 +45,7 @@ interface RegistryStats {
 export default function VoterRegistry() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { accessToken } = useAuthStore();
+    const { accessToken, user } = useAuthStore();
 
     const [voters, setVoters] = useState<Voter[]>([]);
     const [stats, setStats] = useState<RegistryStats | null>(null);
@@ -58,8 +58,12 @@ export default function VoterRegistry() {
     const [formData, setFormData] = useState({
         rut: '',
         fullName: '',
-        email: ''
+        email: '',
+        organizationId: ''
     });
+    const [organizations, setOrganizations] = useState<Array<{ id: string; name: string }>>([]);
+    const [orgSearchTerm, setOrgSearchTerm] = useState('');
+    const [showOrgDropdown, setShowOrgDropdown] = useState(false);
     const [isSearchingUser, setIsSearchingUser] = useState(false);
     const [existingUser, setExistingUser] = useState<any>(null);
 
@@ -91,7 +95,26 @@ export default function VoterRegistry() {
 
     useEffect(() => {
         fetchVoters();
-    }, [fetchVoters]);
+        if (user?.role === 'super_admin') {
+            fetchOrganizations();
+        }
+    }, [fetchVoters, user]);
+
+    const fetchOrganizations = async () => {
+        try {
+            const response = await fetch('/api/admin/organizations', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setOrganizations(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching organizations:', error);
+        }
+    };
 
 
     // Check if user exists by RUT
@@ -135,6 +158,16 @@ export default function VoterRegistry() {
 
             // If user doesn't exist, create it first
             if (!userIdToAdd) {
+                // Determine which organizationId to use
+                const orgIdToUse = user?.role === 'super_admin' && formData.organizationId
+                    ? formData.organizationId
+                    : user?.organizationId;
+
+                if (!orgIdToUse) {
+                    toast.error('No se pudo obtener la organización');
+                    return;
+                }
+
                 const createResponse = await fetch('/api/admin/users', {
                     method: 'POST',
                     headers: {
@@ -145,7 +178,8 @@ export default function VoterRegistry() {
                         rut: cleanRut(formData.rut),
                         fullName: formData.fullName,
                         email: formData.email,
-                        role: 'voter'
+                        role: 'voter',
+                        organizationId: orgIdToUse
                     }),
                 });
 
@@ -176,7 +210,7 @@ export default function VoterRegistry() {
 
             toast.success('Votante agregado al padrón exitosamente');
             setShowAddModal(false);
-            setFormData({ rut: '', fullName: '', email: '' });
+            setFormData({ rut: '', fullName: '', email: '', organizationId: '' });
             setExistingUser(null);
             fetchVoters();
         } catch (error) {
@@ -484,7 +518,7 @@ export default function VoterRegistry() {
                             <h3 className="text-lg font-bold">Agregar Votante al Padrón</h3>
                             <button onClick={() => {
                                 setShowAddModal(false);
-                                setFormData({ rut: '', fullName: '', email: '' });
+                                setFormData({ rut: '', fullName: '', email: '', organizationId: '' });
                                 setExistingUser(null);
                             }} className="text-gray-500 hover:text-gray-700">
                                 <XCircle className="w-6 h-6" />
@@ -557,6 +591,91 @@ export default function VoterRegistry() {
                                     />
                                 </div>
 
+                                {/* Organization selector - only for super_admin */}
+                                {user?.role === 'super_admin' && !existingUser && (
+                                    <div className="relative">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Organización *
+                                        </label>
+
+                                        {/* Selected organization display or search input */}
+                                        {formData.organizationId && !showOrgDropdown ? (
+                                            <div className="relative">
+                                                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-between">
+                                                    <span className="text-gray-900">
+                                                        {organizations.find(o => o.id === formData.organizationId)?.name}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData({ ...formData, organizationId: '' });
+                                                            setOrgSearchTerm('');
+                                                            setShowOrgDropdown(true);
+                                                        }}
+                                                        className="text-gray-400 hover:text-gray-600"
+                                                    >
+                                                        <XCircle className="h-5 w-5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={orgSearchTerm}
+                                                    onChange={(e) => {
+                                                        setOrgSearchTerm(e.target.value);
+                                                        setShowOrgDropdown(true);
+                                                    }}
+                                                    onFocus={() => setShowOrgDropdown(true)}
+                                                    placeholder="Buscar organización..."
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                                    required={!formData.organizationId}
+                                                />
+                                                <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
+                                            </div>
+                                        )}
+
+                                        {/* Dropdown */}
+                                        {showOrgDropdown && (
+                                            <>
+                                                <div
+                                                    className="fixed inset-0 z-10"
+                                                    onClick={() => setShowOrgDropdown(false)}
+                                                />
+                                                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                                    {organizations
+                                                        .filter(org =>
+                                                            org.name.toLowerCase().includes(orgSearchTerm.toLowerCase())
+                                                        )
+                                                        .map(org => (
+                                                            <div
+                                                                key={org.id}
+                                                                onClick={() => {
+                                                                    setFormData({ ...formData, organizationId: org.id });
+                                                                    setOrgSearchTerm('');
+                                                                    setShowOrgDropdown(false);
+                                                                }}
+                                                                className={`px-4 py-2 cursor-pointer hover:bg-blue-50 ${formData.organizationId === org.id ? 'bg-blue-100' : ''
+                                                                    }`}
+                                                            >
+                                                                {org.name}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                    {organizations.filter(org =>
+                                                        org.name.toLowerCase().includes(orgSearchTerm.toLowerCase())
+                                                    ).length === 0 && (
+                                                            <div className="px-4 py-2 text-gray-500 text-sm">
+                                                                No se encontraron organizaciones
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
                                 {!existingUser && formData.rut.length > 0 && (
                                     <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-700">
                                         <p>Este usuario no existe en el sistema. Se creará una cuenta nueva automáticamente y se le enviará una contraseña temporal.</p>
@@ -569,7 +688,7 @@ export default function VoterRegistry() {
                                     type="button"
                                     onClick={() => {
                                         setShowAddModal(false);
-                                        setFormData({ rut: '', fullName: '', email: '' });
+                                        setFormData({ rut: '', fullName: '', email: '', organizationId: '' });
                                         setExistingUser(null);
                                     }}
                                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
