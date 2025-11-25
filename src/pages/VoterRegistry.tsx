@@ -189,7 +189,7 @@ export default function VoterRegistry() {
                 }
 
                 const createData = await createResponse.json();
-                userIdToAdd = createData.data.id;
+                userIdToAdd = createData.data.user.id;
                 toast.success('Usuario creado exitosamente');
             }
 
