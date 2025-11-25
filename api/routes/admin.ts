@@ -243,8 +243,9 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       });
     }
 
-    const { rut, email, fullName, role } = req.body;
-    const organizationId = req.user.organizationId;
+    const { rut, email, fullName, role, organizationId: bodyOrgId } = req.body;
+    // Use organizationId from body if provided, otherwise use user's organizationId
+    const organizationId = bodyOrgId || req.user.organizationId;
 
     // Check if user exists
     const existingUser = await User.findOne({
