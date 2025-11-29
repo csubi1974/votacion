@@ -13,6 +13,10 @@ RUN npm ci
 # Copia el resto del código
 COPY . .
 
+# Define la URL del API como argumento de build
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Compila el frontend
 RUN npm run build
 
