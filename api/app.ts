@@ -52,6 +52,8 @@ app.use(cors({
     'http://190.46.57.52:5173',
     'http://190.46.57.52:3001',
     'https://votacion-votacion.dwb2p9.easypanel.host',
+    'https://votacionenlinea.cl',
+    'https://www.votacionenlinea.cl',
     process.env.FRONTEND_URL,
   ].filter(Boolean),
   credentials: true,
