@@ -27,7 +27,7 @@ export default function MainLayout() {
         try {
             await logout();
             toast.success('Sesión cerrada exitosamente');
-            navigate('/login');
+            navigate('/');
         } catch {
             toast.error('Error al cerrar sesión');
         }
@@ -93,28 +93,28 @@ export default function MainLayout() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div className="fixed inset-0 z-40 lg:hidden">
-                    <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
+                    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
                 </div>
             )}
 
             {/* Sidebar */}
-            <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+            <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900/90 backdrop-blur-xl border-r border-slate-700 shadow-2xl transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between h-16 px-6 border-b border-slate-700/50">
                         <Link to="/dashboard" className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                                 <Vote className="h-6 w-6 text-white" />
                             </div>
-                            <h1 className="text-xl font-bold text-gray-900">VotApp</h1>
+                            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">VotApp</h1>
                         </Link>
                         <button
                             onClick={() => setSidebarOpen(false)}
-                            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5"
                         >
                             <X className="h-6 w-6" />
                         </button>
@@ -128,13 +128,13 @@ export default function MainLayout() {
                                     <Link
                                         to={item.href}
                                         onClick={() => setSidebarOpen(false)}
-                                        className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${isActive(item.href)
-                                                ? 'bg-blue-50 text-blue-700 shadow-sm'
-                                                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                                        className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 ${isActive(item.href)
+                                            ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-400 border border-blue-500/20'
+                                            : 'text-gray-400 hover:bg-white/5 hover:text-white'
                                             }`}
                                     >
                                         <item.icon
-                                            className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
+                                            className={`mr-3 h-5 w-5 ${isActive(item.href) ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300'
                                                 }`}
                                         />
                                         {item.name}
@@ -145,28 +145,28 @@ export default function MainLayout() {
                     </nav>
 
                     {/* User section */}
-                    <div className="absolute bottom-0 w-full border-t border-gray-200 bg-white">
+                    <div className="absolute bottom-0 w-full border-t border-slate-700/50 bg-slate-900/50 backdrop-blur-md">
                         <div className="p-4 space-y-3">
                             <div className="flex items-center space-x-3 px-2">
                                 <div className="flex-shrink-0">
-                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
                                         <span className="text-sm font-semibold text-white">
                                             {user?.fullName?.charAt(0).toUpperCase() || 'U'}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                    <p className="text-sm font-semibold text-white truncate">
                                         {user?.fullName || 'Usuario'}
                                     </p>
-                                    <p className="text-xs text-gray-500 truncate">
+                                    <p className="text-xs text-gray-400 truncate">
                                         {getRoleName(user?.role)}
                                     </p>
                                 </div>
                             </div>
                             <button
                                 onClick={handleLogout}
-                                className="flex items-center justify-center w-full px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                                className="flex items-center justify-center w-full px-4 py-2.5 text-sm font-medium text-gray-300 bg-white/5 border border-slate-700 rounded-xl hover:bg-white/10 hover:text-white hover:border-slate-600 transition-all duration-200"
                             >
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Cerrar Sesión
@@ -179,16 +179,16 @@ export default function MainLayout() {
             {/* Main content */}
             <div className="lg:pl-72">
                 {/* Top bar */}
-                <div className="sticky top-0 z-40 bg-white shadow-sm">
+                <div className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50">
                     <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
                         <button
                             onClick={() => setSidebarOpen(true)}
-                            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/5"
                         >
                             <Menu className="h-6 w-6" />
                         </button>
                         <div className="flex items-center space-x-4">
-                            <h2 className="text-lg font-semibold text-gray-900 capitalize">
+                            <h2 className="text-lg font-semibold text-white capitalize">
                                 {location.pathname === '/dashboard'
                                     ? 'Dashboard'
                                     : location.pathname.split('/').filter(Boolean).pop()?.replace(/-/g, ' ') || 'Dashboard'}
@@ -196,11 +196,11 @@ export default function MainLayout() {
                         </div>
                         <div className="flex items-center space-x-4">
                             {user?.organizationName && (
-                                <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
                                     🏢 {user.organizationName}
                                 </span>
                             )}
-                            <span className="text-sm text-gray-500 hidden md:block">
+                            <span className="text-sm text-gray-400 hidden md:block">
                                 {new Date().toLocaleDateString('es-CL', {
                                     weekday: 'long',
                                     year: 'numeric',

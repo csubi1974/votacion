@@ -8,7 +8,6 @@ import { Vote } from '../models/Vote.js';
 import { Organization } from '../models/Organization.js';
 import { authenticateToken, requireRole } from '../middleware/auth.js';
 import { AuditService } from '../services/AuditService.js';
-import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 const auditService = new AuditService();
@@ -260,51 +259,63 @@ router.post('/users', authenticateToken, requireRole(['admin', 'super_admin']), 
       return res.status(400).json({
         success: false,
         message: 'User with this email or RUT already exists'
-      fullName,
-        role,
-        organizationId,
-        emailVerified: false
       });
+    }
 
-      // Log audit event
-      await auditService.logActivity({
-        userId: req.user.id,
-        action: 'USER_CREATED',
-        resourceType: 'user',
-        resourceId: user.id,
-        oldValues: null,
-        newValues: {
+    // Generate temporary password
+    const tempPassword = req.body.password || Math.random().toString(36).slice(-8);
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.default.hash(tempPassword, 10);
+
+    const user = await User.create({
+      rut,
+      email,
+      passwordHash: hashedPassword,
+      fullName,
+      role,
+      organizationId,
+      emailVerified: false
+    });
+
+    // Log audit event
+    await auditService.logActivity({
+      userId: req.user.id,
+      action: 'USER_CREATED',
+      resourceType: 'user',
+      resourceId: user.id,
+      oldValues: null,
+      newValues: {
+        rut: user.rut,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        organizationId: user.organizationId
+      },
+      ipAddress: req.ip || '0.0.0.0',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: {
+        user: {
+          id: user.id,
           rut: user.rut,
           email: user.email,
           fullName: user.fullName,
-          role: user.role,
-          organizationId: user.organizationId
+          role: user.role
         },
-        ipAddress: req.ip || '0.0.0.0',
-      });
-
-      res.status(201).json({
-        success: true,
-        message: 'User created successfully',
-        data: {
-          user: {
-            id: user.id,
-            rut: user.rut,
-            email: user.email,
-            fullName: user.fullName,
-            role: user.role
-          },
-          tempPassword
-        }
-      });
-    } catch (error) {
-      console.error('User creation error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to create user'
-      });
-    }
-  });
+        tempPassword
+      }
+    });
+  } catch (error) {
+    console.error('User creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create user'
+    });
+  }
+});
 
 router.put('/users/:id', authenticateToken, requireRole(['admin', 'super_admin']), async (req: AdminRequest, res: Response) => {
   try {

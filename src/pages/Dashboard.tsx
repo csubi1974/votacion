@@ -182,10 +182,10 @@ const Dashboard: React.FC = () => {
     <div>
       {/* Welcome Message */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-white mb-2">
           ¡Bienvenido, {user?.fullName}!
         </h2>
-        <p className="text-gray-600">
+        <p className="text-gray-400">
           Selecciona una opción del menú para comenzar.
         </p>
       </div>
@@ -196,22 +196,22 @@ const Dashboard: React.FC = () => {
           <div
             key={index}
             onClick={() => navigate(item.href)}
-            className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer border border-gray-200"
+            className="group bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-lg hover:shadow-2xl hover:border-blue-500/50 transition-all duration-300 cursor-pointer overflow-hidden"
           >
             <div className="p-6">
               <div className="flex items-center mb-4">
-                <div className={`w-12 h-12 ${item.color} rounded-lg flex items-center justify-center`}>
-                  <item.icon className="w-6 h-6 text-white" />
+                <div className={`w-12 h-12 ${item.color} bg-opacity-20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                  <item.icon className={`w-6 h-6 ${item.color.replace('bg-', 'text-')}`} />
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-semibold text-gray-900">{item.title}</h3>
+                  <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors">{item.title}</h3>
                 </div>
               </div>
-              <p className="text-gray-600 text-sm">{item.description}</p>
+              <p className="text-gray-400 text-sm">{item.description}</p>
             </div>
-            <div className="px-6 py-3 bg-gray-50 rounded-b-lg">
-              <span className="text-blue-600 font-medium text-sm hover:text-blue-800">
-                Acceder →
+            <div className="px-6 py-3 bg-white/5 border-t border-slate-700 group-hover:bg-blue-500/10 transition-colors">
+              <span className="text-blue-400 font-medium text-sm group-hover:text-blue-300 flex items-center">
+                Acceder <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
               </span>
             </div>
           </div>
@@ -220,14 +220,16 @@ const Dashboard: React.FC = () => {
 
       {/* Quick Stats */}
       <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-lg p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Vote className="w-8 h-8 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                <Vote className="w-6 h-6 text-blue-400" />
+              </div>
             </div>
             <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Votaciones Activas</h3>
-              <p className="text-2xl font-bold text-gray-900">
+              <h3 className="text-lg font-medium text-gray-400">Votaciones Activas</h3>
+              <p className="text-3xl font-bold text-white mt-1">
                 {loading ? '...' : stats.activeElections}
               </p>
             </div>
@@ -236,28 +238,32 @@ const Dashboard: React.FC = () => {
 
         {['admin', 'super_admin'].includes(user?.role || '') && (
           <>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-lg p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Users className="w-8 h-8 text-green-600" />
+                  <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                    <Users className="w-6 h-6 text-green-400" />
+                  </div>
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Total Usuarios</h3>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <h3 className="text-lg font-medium text-gray-400">Total Usuarios</h3>
+                  <p className="text-3xl font-bold text-white mt-1">
                     {loading ? '...' : stats.totalUsers}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-lg p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <BarChart3 className="w-8 h-8 text-purple-600" />
+                  <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                    <BarChart3 className="w-6 h-6 text-purple-400" />
+                  </div>
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Participación</h3>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <h3 className="text-lg font-medium text-gray-400">Participación</h3>
+                  <p className="text-3xl font-bold text-white mt-1">
                     {loading ? '...' : `${stats.participationRate}%`}
                   </p>
                 </div>
