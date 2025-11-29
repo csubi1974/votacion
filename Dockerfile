@@ -20,4 +20,4 @@ RUN npm run build
 EXPOSE 3000
 
 # Comando para iniciar la aplicación
-CMD ["npm", "run", "server:dev"]
+CMD ["npx", "tsx", "api/server.ts"]
