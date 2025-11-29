@@ -72,7 +72,8 @@ export default function ElectionResults() {
   useEffect(() => {
     if (!id) return;
 
-    const socket = io(import.meta.env.VITE_API_URL || 'http://192.168.0.3:3001', {
+    const socketUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? window.location.origin : 'http://192.168.0.3:3001');
+    const socket = io(socketUrl, {
       withCredentials: true,
     });
 
