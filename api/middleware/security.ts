@@ -141,11 +141,11 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
   }
 
   if (req.query) {
-    req.query = sanitizeObject(req.query) as unknown as Record<string, unknown>;
+    req.query = sanitizeObject(req.query) as any;
   }
 
   if (req.params) {
-    req.params = sanitizeObject(req.params) as unknown as Record<string, unknown>;
+    req.params = sanitizeObject(req.params) as any;
   }
 
   next();

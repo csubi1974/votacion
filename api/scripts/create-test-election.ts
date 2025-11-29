@@ -44,7 +44,7 @@ async function createTestElection() {
             maxVotesPerUser: 1,
             isPublic: true,
             organizationId: org.id,
-        });
+        } as any);
 
         console.log('✅ Election created:', election.id);
 

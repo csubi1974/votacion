@@ -18,7 +18,7 @@ async function main() {
                 name: 'Default Organization',
                 rut: '11.111.111-1', // Fake RUT
                 email: 'admin@default.com'
-            });
+            } as any);
         }
         console.log(`Organization ID: ${org.id}`);
 
@@ -46,7 +46,7 @@ async function main() {
                 role: 'super_admin',
                 organizationId: org.id,
                 emailVerified: true
-            });
+            } as any);
         }
 
         console.log('\n✅ ADMIN USER READY:');

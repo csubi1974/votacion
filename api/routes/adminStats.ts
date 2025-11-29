@@ -46,7 +46,7 @@ router.get('/participation', authenticateToken, requireRole(['admin', 'super_adm
             }],
             where: {
                 createdAt: { [Op.gte]: startDate }
-            },
+            } as any,
             group: ['time'],
             order: [['time', 'ASC']],
             raw: true
@@ -124,18 +124,21 @@ router.get('/export', authenticateToken, requireRole(['admin', 'super_admin']), 
                 totalVotes,
                 participationRate: totalUsers > 0 ? ((totalVotes / totalUsers) * 100).toFixed(2) + '%' : '0%'
             },
-            elections: elections.map(e => ({
-                id: e.id,
-                title: e.title,
-                status: e.status,
-                startDate: e.startDate,
-                endDate: e.endDate,
-                totalVotes: e.votes?.length || 0,
-                options: e.options?.map(o => ({
-                    text: o.text,
-                    votes: o.votes?.length || 0
-                }))
-            }))
+            elections: elections.map(e => {
+                const election = e as any;
+                return {
+                    id: election.id,
+                    title: election.title,
+                    status: election.status,
+                    startDate: election.startDate,
+                    endDate: election.endDate,
+                    totalVotes: election.votes?.length || 0,
+                    options: election.options?.map((o: any) => ({
+                        text: o.text,
+                        votes: o.votes?.length || 0
+                    }))
+                };
+            })
         };
 
         res.json({

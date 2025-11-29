@@ -19,9 +19,9 @@ async function listOrganizations() {
             console.log(`   ID: ${org.id}`);
             console.log(`   RUT: ${org.rut}`);
             console.log(`   Email: ${org.email || 'N/A'}`);
-            console.log(`   Teléfono: ${org.phone || 'N/A'}`);
-            console.log(`   Dirección: ${org.address || 'N/A'}`);
-            console.log(`   Sitio web: ${org.website || 'N/A'}`);
+            console.log(`   Teléfono: ${(org as any).phone || 'N/A'}`);
+            console.log(`   Dirección: ${(org as any).address || 'N/A'}`);
+            console.log(`   Sitio web: ${(org as any).website || 'N/A'}`);
         });
 
         console.log('\n' + '═'.repeat(80));

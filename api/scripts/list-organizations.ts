@@ -23,7 +23,7 @@ async function listOrganizations() {
             orgs.forEach(org => {
                 console.log(`  - ${org.name}`);
                 console.log(`    ID: ${org.id}`);
-                console.log(`    Domain: ${org.domain}`);
+                console.log(`    Domain: ${(org as any).domain}`);
                 console.log('');
             });
         }

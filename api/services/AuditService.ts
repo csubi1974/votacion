@@ -377,7 +377,7 @@ export class AuditService {
           createdAt: {
             [Op.between]: [startDate, endDate],
           },
-        } as unknown,
+        } as any,
         attributes: [
           'userId',
           [Sequelize.fn('COUNT', Sequelize.col('id')), 'activityCount'],
@@ -399,10 +399,10 @@ export class AuditService {
           createdAt: {
             [Op.between]: [startDate, endDate],
           },
-        } as unknown,
+        } as any,
         distinct: true,
         col: 'userId',
-      });
+      }) as unknown as number;
 
       return {
         uniqueUsers,
